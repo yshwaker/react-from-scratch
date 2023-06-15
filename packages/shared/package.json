@@ -1,0 +1,11 @@
+{
+  "activationEvents": [
+    1
+  ],
+  "author": "",
+  "description": "shared react utilities",
+  "keywords": [],
+  "license": "ISC",
+  "name": "shared",
+  "version": "1.0.0"
+}
