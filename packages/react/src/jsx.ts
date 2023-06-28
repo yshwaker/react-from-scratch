@@ -1,20 +1,13 @@
 import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols'
-import {
-  ElementType,
-  Key,
-  Props,
-  ReactElement,
-  Ref,
-  Type,
-} from 'shared/ReactTypes'
+import { ElementType, Key, Props, React$Element, Ref } from 'shared/ReactTypes'
 
 // react element constructor
 const ReactElement = function (
-  type: Type,
+  type: ElementType,
   key: Key,
   ref: Ref,
   props: Props
-): ReactElement {
+): React$Element {
   const element = {
     // this is used to prevent hackers from faking a react element using plain object
     // see also https://overreacted.io/why-do-react-elements-have-typeof-property/
@@ -32,7 +25,7 @@ const ReactElement = function (
 export const jsx = (
   type: ElementType,
   config: any,
-  ...maybeChildren: Array<any>
+  ...children: Array<any>
 ) => {
   let key: Key = null
   const props: Props = {}
@@ -55,12 +48,9 @@ export const jsx = (
     }
   }
 
-  const maybeChildrenLength = maybeChildren.length
-  if (maybeChildrenLength === 1) {
-    props.children = maybeChildren[0]
-  }
-  if (maybeChildrenLength > 1) {
-    props.children = maybeChildren
+  const childrenLength = children.length
+  if (childrenLength >= 1) {
+    props.children = childrenLength > 1 ? children : children[0]
   }
 
   return ReactElement(type, key, ref, props)
