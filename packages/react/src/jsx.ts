@@ -56,5 +56,27 @@ export const jsx = (
   return ReactElement(type, key, ref, props)
 }
 
-// in the official react library, jsxDev comes with more debug info which is skipped here.
-export const jsxDev = jsx
+export const jsxDev = (type: ElementType, config: any) => {
+  let key: Key = null
+  const props: Props = {}
+  let ref: Ref = null
+
+  const keys = Object.keys(config)
+
+  for (const prop of keys) {
+    const val = config[prop]
+    if (prop === 'key') {
+      if (val !== undefined) {
+        key = '' + val
+      }
+    } else if (props === 'ref') {
+      if (val !== undefined) {
+        ref = val
+      }
+    } else {
+      props[prop] = val
+    }
+  }
+
+  return ReactElement(type, key, ref, props)
+}
