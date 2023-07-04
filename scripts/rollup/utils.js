@@ -1,4 +1,5 @@
 import commonjs from '@rollup/plugin-commonjs'
+import replace from '@rollup/plugin-replace'
 import path from 'path'
 import ts from 'rollup-plugin-typescript2'
 
@@ -9,6 +10,11 @@ export function resolvePkgPath(pkgName, isDist) {
   return `${isDist ? distPath : pkgPath}/${pkgName}`
 }
 
-export function getBasePlugins({ typescript = {} } = {}) {
-  return [commonjs(), ts(typescript)]
+export function getBasePlugins({
+  alias = {
+    __DEV__: true,
+  },
+  typescript = {},
+} = {}) {
+  return [replace(alias), commonjs(), ts(typescript)]
 }

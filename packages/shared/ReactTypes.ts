@@ -11,3 +11,5 @@ export interface React$Element {
   props: Props
   __mark: string
 }
+
+export type Action<State> = State | ((prevState: State) => State)
