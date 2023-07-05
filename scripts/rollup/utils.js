@@ -13,6 +13,7 @@ export function resolvePkgPath(pkgName, isDist) {
 export function getBasePlugins({
   alias = {
     __DEV__: true,
+    preventAssignment: true,
   },
   typescript = {},
 } = {}) {

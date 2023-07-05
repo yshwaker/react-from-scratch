@@ -42,6 +42,7 @@ function ChildReconciler(shouldTrackEffects: boolean) {
   ) {
     if (typeof newChild === 'object' && newChild !== null) {
       switch (newChild.$$typeof) {
+        // single react element
         case REACT_ELEMENT_TYPE:
           return placeSingleChild(
             reconcileSingleElement(returnFiber, currentFiber, newChild)
