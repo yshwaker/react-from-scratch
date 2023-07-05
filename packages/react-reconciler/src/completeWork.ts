@@ -1,11 +1,17 @@
 import {
+  Container,
   appendInitialChild,
   createInstance,
   createTextInstance,
 } from 'hostConfig'
 import { FiberNode } from './fiber'
 import { NoFlags } from './fiberFlags'
-import { HostComponent, HostRoot, HostText } from './workTags'
+import {
+  FunctionComponent,
+  HostComponent,
+  HostRoot,
+  HostText,
+} from './workTags'
 
 export function completeWork(wip: FiberNode) {
   const newProps = wip.pendingProps
@@ -39,7 +45,9 @@ export function completeWork(wip: FiberNode) {
     case HostRoot:
       bubbleProperties(wip)
       return null
-
+    case FunctionComponent:
+      bubbleProperties(wip)
+      return null
     default:
       if (__DEV__) {
         console.warn('unknown fiber tag for completework', wip)
@@ -48,11 +56,11 @@ export function completeWork(wip: FiberNode) {
   }
 }
 
-function appendAllChildren(parent: FiberNode, wip: FiberNode) {
+function appendAllChildren(parent: Container, wip: FiberNode) {
   let node = wip.child
 
   while (node !== null) {
-    // append all dom node inside wip to parent
+    // append the root host node of each child under the wip to parent
     if (node.tag === HostComponent || node.tag === HostText) {
       appendInitialChild(parent, node?.stateNode)
     } else if (node.child !== null) {

@@ -1,21 +1,27 @@
 import { React$Element } from 'shared/ReactTypes'
 import { mountChildFibers, reconcileChildFibers } from './childFibers'
 import { FiberNode } from './fiber'
+import { renderWithHooks } from './fiberHooks'
 import { UpdateQueue, processUpdateQueue } from './updateQueue'
-import { HostComponent, HostRoot, HostText } from './workTags'
+import {
+  FunctionComponent,
+  HostComponent,
+  HostRoot,
+  HostText,
+} from './workTags'
 
 // reconcile the children, return the child if possible
 export function beginWork(wip: FiberNode) {
   switch (wip.tag) {
     case HostRoot:
       return updateHostRoot(wip)
-
     case HostComponent:
       return updateHostComponent(wip)
-
     case HostText:
       // leaf node, no more children to update
       return null
+    case FunctionComponent:
+      return updateFunctionComponent(wip)
     default:
       if (__DEV__) {
         console.error('fiber tag is not supported in beginwork')
@@ -46,6 +52,14 @@ function updateHostComponent(wip: FiberNode) {
   // host components don't have updateQueue
   // it can only create child node from the `children` prop
   const { children: nextChildren } = wip.pendingProps
+  reconcileChildren(wip, nextChildren)
+
+  return wip.child
+}
+
+function updateFunctionComponent(wip: FiberNode) {
+  const nextChildren = renderWithHooks(wip)
+  // nextChildren should be the return value of function component
   reconcileChildren(wip, nextChildren)
 
   return wip.child
