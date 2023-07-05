@@ -1,9 +1,11 @@
+import { useState } from "react"
 import ReactDOM from "react-dom"
 
 function App() {
+  const [num] = useState(100)
   return (
     <div>
-      <span>Hello world</span>
+      <div>{num}</div>
     </div>
   )
 }

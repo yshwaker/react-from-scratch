@@ -22,6 +22,8 @@ export class FiberNode {
 
   pendingProps: Props
   memoizedProps: Props | null // updated props after current work unit completes
+  // FunctionComponent: pointer to a linked list of hooks used inside the component
+  // HostRoot: updated react element
   memoizedState: any
   alternate: FiberNode | null // corresponding fiber node between current tree and wip tree
   flags: Flags // the mark for future operation(side effects) like dom append, update or deletion...

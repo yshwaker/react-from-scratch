@@ -1,14 +1,15 @@
 import alias from '@rollup/plugin-alias'
 import generatePackageJson from 'rollup-plugin-generate-package-json'
-import { getBasePlugins, resolvePkgPath } from './utils'
+import { getBasePlugins, getPackageJSON, resolvePkgPath } from './utils'
 
-const pkgPath = resolvePkgPath('react-dom')
-const distPath = resolvePkgPath('react-dom', true)
+const { peerDependencies, name, module } = getPackageJSON('react-dom')
+const pkgPath = resolvePkgPath(name)
+const distPath = resolvePkgPath(name, true)
 
 export default [
   // react-dom
   {
-    input: `${pkgPath}/index.ts`,
+    input: `${pkgPath}/${module}`,
     output: [
       // old version for compatibility
       {
@@ -23,6 +24,8 @@ export default [
         format: 'umd',
       },
     ],
+    // we don't want to bundle peer deps into the dist files
+    external: [Object.keys(peerDependencies)],
     plugins: [
       ...getBasePlugins(),
       alias({
