@@ -1,5 +1,5 @@
 import { useState } from "react"
-import ReactDOM from "react-dom"
+import ReactDOM from "react-dom/client"
 
 function App() {
   const [num] = useState(100)
