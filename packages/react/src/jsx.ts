@@ -22,6 +22,14 @@ const ReactElement = function (
   return element
 }
 
+export function isValidElement(object: any) {
+  return (
+    typeof object === 'object' &&
+    object !== null &&
+    object.$$typeof === REACT_ELEMENT_TYPE
+  )
+}
+
 export const jsx = (
   type: ElementType,
   config: any,
@@ -31,19 +39,17 @@ export const jsx = (
   const props: Props = {}
   let ref: Ref = null
 
-  const keys = Object.keys(config)
-
-  for (const prop of keys) {
+  for (const prop in config) {
     const val = config[prop]
     if (prop === 'key') {
       if (val !== undefined) {
         key = '' + val
       }
-    } else if (props === 'ref') {
+    } else if (prop === 'ref') {
       if (val !== undefined) {
         ref = val
       }
-    } else {
+    } else if (Object.prototype.hasOwnProperty.call(config, prop)) {
       props[prop] = val
     }
   }
@@ -61,19 +67,17 @@ export const jsxDEV = (type: ElementType, config: any) => {
   const props: Props = {}
   let ref: Ref = null
 
-  const keys = Object.keys(config)
-
-  for (const prop of keys) {
+  for (const prop in config) {
     const val = config[prop]
     if (prop === 'key') {
       if (val !== undefined) {
         key = '' + val
       }
-    } else if (props === 'ref') {
+    } else if (prop === 'ref') {
       if (val !== undefined) {
         ref = val
       }
-    } else {
+    } else if (Object.prototype.hasOwnProperty.call(config, prop)) {
       props[prop] = val
     }
   }

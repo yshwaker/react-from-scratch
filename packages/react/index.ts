@@ -2,7 +2,6 @@ import currentDispatcher, {
   Dispatcher,
   resolveDispatcher,
 } from './src/currentDispatcher'
-import { jsxDEV } from './src/jsx'
 
 // * expose hooks from current dispatcher, like a proxy
 export const useState: Dispatcher['useState'] = (initialState: any) => {
@@ -15,7 +14,7 @@ export const __SECRET_INTERNALS_DO_NOT_USE_OR_YOU_WILL_BE_FIRED = {
   currentDispatcher,
 }
 
-export default {
-  version: '0.0.0',
-  createElement: jsxDEV,
-}
+export const version = '0.0.0'
+
+// TODO: createElement should be jsx or jsxDEV based on env
+export { jsx as createElement, isValidElement } from './src/jsx'

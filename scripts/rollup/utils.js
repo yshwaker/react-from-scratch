@@ -12,7 +12,7 @@ export function resolvePkgPath(pkgName, isDist) {
 }
 
 export function getPackageJSON(pkgName) {
-  const path = `resolvePkgPath(pkgName)/package.json`
+  const path = `${resolvePkgPath(pkgName)}/package.json`
   const raw = fs.readFileSync(path, { encoding: 'utf-8' })
 
   return JSON.parse(raw)

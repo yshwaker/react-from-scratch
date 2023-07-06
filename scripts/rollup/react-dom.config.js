@@ -48,4 +48,18 @@ export default [
       }),
     ],
   },
+  // react-test-utils
+  {
+    input: `${pkgPath}/test-utils.ts`,
+    output: [
+      // old version for compatibility
+      {
+        name: 'testUtils',
+        file: `${distPath}/test-utils.js`,
+        format: 'umd',
+      },
+    ],
+    external: ['react-dom', 'react'],
+    plugins: getBasePlugins(),
+  },
 ]
