@@ -22,32 +22,52 @@ function ChildReconciler(shouldTrackEffects: boolean) {
     }
   }
 
+  function deleteRemainingChildren(
+    returnFiber: FiberNode,
+    currentFirstChild: FiberNode | null
+  ) {
+    if (!shouldTrackEffects) {
+      return
+    }
+    let childToDelete = currentFirstChild
+    while (childToDelete !== null) {
+      deleteChild(returnFiber, childToDelete)
+      childToDelete = childToDelete.sibling
+    }
+  }
+
   function reconcileSingleElement(
     returnFiber: FiberNode,
     currentFiber: FiberNode | null,
     element: React$Element
   ) {
     const key = element.key
-    if (currentFiber !== null) {
+    while (currentFiber !== null) {
       //update
       if (currentFiber.key === key) {
+        // same key
         if (element.$$typeof === REACT_ELEMENT_TYPE) {
           if (currentFiber.type === element.type) {
             // same type
             const existing = useFiber(currentFiber, element.props)
             existing.return = returnFiber
+            deleteRemainingChildren(returnFiber, currentFiber.sibling)
+
             return existing
           }
-          // delete old fiber
-          deleteChild(returnFiber, currentFiber)
+          // same key, different type: delete all children
+          deleteRemainingChildren(returnFiber, currentFiber)
+          break
         } else {
           if (__DEV__) {
             console.warn('unsupported element type', element)
           }
+          break
         }
       } else {
-        // delete old fiber
+        // different key: delete current fiber
         deleteChild(returnFiber, currentFiber)
+        currentFiber = currentFiber.sibling
       }
     }
 
@@ -62,16 +82,18 @@ function ChildReconciler(shouldTrackEffects: boolean) {
     currentFiber: FiberNode | null,
     content: string | number
   ) {
-    if (currentFiber !== null) {
+    while (currentFiber !== null) {
       // update
       if (currentFiber.tag === HostText) {
         const existing = useFiber(currentFiber, { content })
         existing.return = returnFiber
+        deleteRemainingChildren(returnFiber, currentFiber.sibling)
         return existing
       }
 
       // non HostText => HostText, delete current node
       deleteChild(returnFiber, currentFiber)
+      currentFiber = currentFiber.sibling
     }
 
     const fiber = new FiberNode(HostText, { content }, null)
