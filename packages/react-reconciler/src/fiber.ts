@@ -13,22 +13,21 @@ export class FiberNode {
   // for Host Component <div>, type: 'div'
   type: any
   ref: Ref
-
   /* point to parent, child, sibling fiber */
   return: FiberNode | null
   child: FiberNode | null
   sibling: FiberNode | null
   index: number // the order of the fiber among the its siblings
-
   pendingProps: Props
   memoizedProps: Props | null // updated props after current work unit completes
   // FunctionComponent: pointer to a linked list of hooks used inside the component
   // HostRoot: updated react element
   memoizedState: any
   alternate: FiberNode | null // corresponding fiber node between current tree and wip tree
+  updateQueue: unknown
   flags: Flags // the mark for future operation(side effects) like dom append, update or deletion...
   subtreeFlags: Flags // flags bubbled up from the descendents
-  updateQueue: unknown
+  deletions: FiberNode[] | null // child fiber nodes to delete
 
   /**
    *
@@ -61,6 +60,7 @@ export class FiberNode {
     // side effects
     this.flags = NoFlags
     this.subtreeFlags = NoFlags
+    this.deletions = null
   }
 }
 
@@ -108,9 +108,11 @@ export function createWorkInProgress(
     current.alternate = wip
   } else {
     // update
+    // reset
     wip.pendingProps = pendingProps
     wip.flags = NoFlags // clear flags from last update
     wip.subtreeFlags = NoFlags
+    wip.deletions = null
   }
 
   wip.type = current.type

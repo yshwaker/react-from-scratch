@@ -1,10 +1,17 @@
+import { FiberNode } from 'react-reconciler/src/fiber'
+import { HostText } from 'react-reconciler/src/workTags'
+import { Props } from 'shared/ReactTypes'
+import { DOMElement, updateFiberProps } from './syntheticEvents'
+
 export type Container = Element
 export type Instance = Element
+export type textInstance = Text
 
-export function createInstance(type: string, props: any): Instance {
+export function createInstance(type: string, props: Props): Instance {
   // TODO: handle props
-  const element = document.createElement(type)
-  return element
+  const element = document.createElement(type) as unknown
+  updateFiberProps(element as DOMElement, props)
+  return element as DOMElement
 }
 
 export function appendInitialChild(
@@ -19,3 +26,29 @@ export function createTextInstance(content: string) {
 }
 
 export const appendChildToContainer = appendInitialChild
+
+export function commitUpdate(fiber: FiberNode) {
+  switch (fiber.tag) {
+    case HostText:
+      const text = fiber.memoizedProps.content
+      return commitTextUpdate(fiber.stateNode, text)
+    // case HostComponent:
+    // TODO: update dom props
+    default:
+      if (__DEV__) {
+        console.warn('unsupported fiber type for update')
+      }
+      break
+  }
+}
+
+function commitTextUpdate(textInstance: textInstance, content: string) {
+  textInstance.textContent = content
+}
+
+export function removeChild(
+  child: Instance | textInstance,
+  container: Container
+) {
+  container.removeChild(child)
+}

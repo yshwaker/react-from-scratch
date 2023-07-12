@@ -4,14 +4,19 @@ import {
   createInstance,
   createTextInstance,
 } from 'hostConfig'
+import { updateFiberProps } from 'react-dom/src/syntheticEvents'
 import { FiberNode } from './fiber'
-import { NoFlags } from './fiberFlags'
+import { NoFlags, Update } from './fiberFlags'
 import {
   FunctionComponent,
   HostComponent,
   HostRoot,
   HostText,
 } from './workTags'
+
+function markUpdate(fiber: FiberNode) {
+  fiber.flags |= Update
+}
 
 export function completeWork(wip: FiberNode) {
   const newProps = wip.pendingProps
@@ -21,6 +26,9 @@ export function completeWork(wip: FiberNode) {
     case HostComponent:
       if (current !== null && wip.stateNode) {
         // update
+        // props changes?  yes: mark with update flags
+        // TODO: compare props, save need-to-update props in update queue = [key1, value1, key2, value2, ...]
+        updateFiberProps(wip.stateNode, newProps)
       } else {
         // mount
         // 1. build DOM node
@@ -34,6 +42,11 @@ export function completeWork(wip: FiberNode) {
     case HostText:
       if (current !== null && wip.stateNode) {
         // update
+        const oldText = current.memoizedProps.content
+        const newText = newProps.content
+        if (oldText !== newText) {
+          markUpdate(wip)
+        }
       } else {
         // mount
         // 1. build DOM node
