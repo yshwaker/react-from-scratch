@@ -1,4 +1,4 @@
-import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols'
+import { REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols'
 import { ElementType, Key, Props, React$Element, Ref } from 'shared/ReactTypes'
 
 // react element constructor
@@ -61,6 +61,8 @@ export const jsx = (
 
   return ReactElement(type, key, ref, props)
 }
+
+export const Fragment = REACT_FRAGMENT_TYPE
 
 export const jsxDEV = (type: ElementType, config: any) => {
   let key: Key = null

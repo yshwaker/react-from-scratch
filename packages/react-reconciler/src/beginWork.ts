@@ -4,6 +4,7 @@ import { FiberNode } from './fiber'
 import { renderWithHooks } from './fiberHooks'
 import { UpdateQueue, processUpdateQueue } from './updateQueue'
 import {
+  Fragment,
   FunctionComponent,
   HostComponent,
   HostRoot,
@@ -22,6 +23,8 @@ export function beginWork(wip: FiberNode) {
       return null
     case FunctionComponent:
       return updateFunctionComponent(wip)
+    case Fragment:
+      return updateFragment(wip)
     default:
       if (__DEV__) {
         console.error('fiber tag is not supported in beginwork')
@@ -30,6 +33,14 @@ export function beginWork(wip: FiberNode) {
   }
 
   return null
+}
+
+function updateFragment(wip: FiberNode) {
+  const nextChildren = wip.pendingProps
+  // nextChildren should be the return value of function component
+  reconcileChildren(wip, nextChildren)
+
+  return wip.child
 }
 
 function updateHostRoot(wip: FiberNode) {

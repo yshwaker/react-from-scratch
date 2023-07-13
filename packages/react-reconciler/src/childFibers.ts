@@ -1,12 +1,13 @@
-import { REACT_ELEMENT_TYPE } from 'shared/ReactSymbols'
-import { Props, React$Element } from 'shared/ReactTypes'
+import { REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols'
+import { Key, Props, React$Element } from 'shared/ReactTypes'
 import {
   FiberNode,
   createFiberFromElement,
+  createFiberFromFragment,
   createWorkInProgress,
 } from './fiber'
 import { ChildDeletion, Placement } from './fiberFlags'
-import { HostText } from './workTags'
+import { Fragment, HostText } from './workTags'
 
 type ExistingChildren = Map<string | number, FiberNode>
 
@@ -50,8 +51,12 @@ function ChildReconciler(shouldTrackEffects: boolean) {
         // same key
         if (element.$$typeof === REACT_ELEMENT_TYPE) {
           if (currentFiber.type === element.type) {
+            let { props } = element
+            if (element.type === REACT_FRAGMENT_TYPE) {
+              props = element.props.children
+            }
             // same type
-            const existing = useFiber(currentFiber, element.props)
+            const existing = useFiber(currentFiber, props)
             existing.return = returnFiber
             deleteRemainingChildren(returnFiber, currentFiber.sibling)
 
@@ -73,7 +78,13 @@ function ChildReconciler(shouldTrackEffects: boolean) {
       }
     }
 
-    const fiber = createFiberFromElement(element)
+    let fiber
+    if (element.type === REACT_FRAGMENT_TYPE) {
+      fiber = createFiberFromFragment(element.props.children, key)
+    } else {
+      fiber = createFiberFromElement(element)
+    }
+
     fiber.return = returnFiber
 
     return fiber
@@ -112,7 +123,7 @@ function ChildReconciler(shouldTrackEffects: boolean) {
     return fiber
   }
 
-  function reconcileChildArray(
+  function reconcileChildrenArray(
     returnFiber: FiberNode,
     currentFirstChild: FiberNode | null,
     newChild: any[]
@@ -128,7 +139,7 @@ function ChildReconciler(shouldTrackEffects: boolean) {
     const existingChildren: ExistingChildren = new Map()
     let current = currentFirstChild
     while (current !== null) {
-      const keyToUse = current.key !== null ? current.key : current.index
+      const keyToUse = getElementKeyToUse(current, current.index)
       existingChildren.set(keyToUse, current)
       current = current.sibling
     }
@@ -186,9 +197,9 @@ function ChildReconciler(shouldTrackEffects: boolean) {
     returnFiber: FiberNode,
     existingChildren: ExistingChildren,
     index: number,
-    element: any
+    element: any // new child
   ): FiberNode | null {
-    const keyToUse = element.key !== null ? element.key : index
+    const keyToUse = getElementKeyToUse(element, index)
     const before = existingChildren.get(keyToUse)
 
     if (typeof element === 'string' || typeof element === 'number') {
@@ -205,6 +216,15 @@ function ChildReconciler(shouldTrackEffects: boolean) {
       // ReactElement
       switch (element.$$typeof) {
         case REACT_ELEMENT_TYPE:
+          if (element.type === REACT_FRAGMENT_TYPE) {
+            return updateFragment(
+              returnFiber,
+              before,
+              element.props.children,
+              keyToUse,
+              existingChildren
+            )
+          }
           if (before) {
             if (before.type === element.type) {
               existingChildren.delete(keyToUse)
@@ -214,9 +234,21 @@ function ChildReconciler(shouldTrackEffects: boolean) {
           return createFiberFromElement(element)
       }
 
-      if (Array.isArray(element) && __DEV__) {
-        // TODO: element is an array of elements
-        console.log('child which is an array of elements is not supported yet')
+      if (Array.isArray(element)) {
+        // arr = [<li>c</li>, <li>d</li>]
+        // <ul>
+        //   <li>a</li>
+        //   <li>b</li>
+        //   {arr}
+        // </ul>
+        // treat arr as fragment
+        return updateFragment(
+          returnFiber,
+          before,
+          element,
+          keyToUse,
+          existingChildren
+        )
       }
     }
 
@@ -226,24 +258,36 @@ function ChildReconciler(shouldTrackEffects: boolean) {
   return function reconcileChildFibers(
     returnFiber: FiberNode,
     currentFiber: FiberNode | null,
-    newChild?: React$Element
+    newChild?: any
   ) {
+    // is Fragment?
+    // top level: the root of the component is a fragment
+    const isUnkeyedTopLevelFragment =
+      typeof newChild === 'object' &&
+      newChild !== null &&
+      newChild.type === REACT_FRAGMENT_TYPE &&
+      newChild.key === null
+
+    if (isUnkeyedTopLevelFragment) {
+      newChild = newChild.props.children
+    }
+
     if (typeof newChild === 'object' && newChild !== null) {
+      // dealing with multiple children, like ul > li*3
+      if (Array.isArray(newChild)) {
+        return reconcileChildrenArray(returnFiber, currentFiber, newChild)
+      }
+
       switch (newChild.$$typeof) {
         // single react element
         case REACT_ELEMENT_TYPE:
           return placeSingleChild(
             reconcileSingleElement(returnFiber, currentFiber, newChild)
           )
-        // default:
-        //   if (__DEV__) {
-        //     console.warn('unsupported type for reconciliation', newChild)
-        //   }
-      }
-
-      // dealing with multiple children, like ul > li*3
-      if (Array.isArray(newChild)) {
-        return reconcileChildArray(returnFiber, currentFiber, newChild)
+        default:
+          if (__DEV__) {
+            console.warn('unsupported type for reconciliation', newChild)
+          }
       }
     }
 
@@ -266,11 +310,41 @@ function ChildReconciler(shouldTrackEffects: boolean) {
   }
 }
 
+function updateFragment(
+  returnFiber: FiberNode,
+  current: FiberNode | undefined,
+  elements: any[],
+  key: Key,
+  existingChildren: ExistingChildren
+) {
+  let fiber
+  if (!current || current.tag !== Fragment) {
+    fiber = createFiberFromFragment(elements, key)
+  } else {
+    existingChildren.delete(key)
+    fiber = useFiber(current, elements)
+  }
+
+  fiber.return = returnFiber
+  return fiber
+}
+
 function useFiber(fiber: FiberNode, pendingProps: Props): FiberNode {
   const clone = createWorkInProgress(fiber, pendingProps)
   clone.index = 0
   clone.sibling = null
   return clone
+}
+
+function getElementKeyToUse(element: any, index?: number): Key {
+  if (
+    Array.isArray(element) ||
+    typeof element === 'number' ||
+    typeof element === 'string'
+  ) {
+    return index
+  }
+  return element.key !== null ? element.key : index
 }
 
 export const reconcileChildFibers = ChildReconciler(true)

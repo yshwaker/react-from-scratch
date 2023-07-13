@@ -1,1 +1,1 @@
-export { jsxDEV } from './src/jsx'
+export { Fragment, jsxDEV } from './src/jsx'

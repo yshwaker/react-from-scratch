@@ -1,7 +1,7 @@
 import { Container } from 'hostConfig' // the path is specified in tsconfig, because each host env has its own implementation
 import { Key, Props, React$Element, Ref } from 'shared/ReactTypes'
 import { Flags, NoFlags } from './fiberFlags'
-import { FunctionComponent, HostComponent, WorkTag } from './workTags'
+import { Fragment, FunctionComponent, HostComponent, WorkTag } from './workTags'
 
 export class FiberNode {
   tag: WorkTag
@@ -37,7 +37,7 @@ export class FiberNode {
    */
   constructor(tag: WorkTag, pendingProps: Props, key: Key) {
     this.tag = tag
-    this.key = key
+    this.key = key ?? null
     this.stateNode = null
     this.type = null
 
@@ -138,5 +138,11 @@ export function createFiberFromElement(element: React$Element) {
   const fiber = new FiberNode(fiberTag, props, key)
   fiber.type = type
 
+  return fiber
+}
+
+// for fragment fiber node, its pending props is a child array
+export function createFiberFromFragment(elements: any[], key: Key): FiberNode {
+  const fiber = new FiberNode(Fragment, elements, key)
   return fiber
 }

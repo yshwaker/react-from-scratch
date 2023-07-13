@@ -77,23 +77,45 @@ function commitMutationEffectsOnFiber(finishedWork: FiberNode) {
   }
 }
 
+function recordHostChildrenToDelete(
+  childToDelete: FiberNode[],
+  unmountFiber: FiberNode
+) {
+  // 1. find the first found host node
+  const lastOne = childToDelete[childToDelete.length - 1]
+  if (!lastOne) {
+    childToDelete.push(unmountFiber)
+  } else {
+    // 2. every time we find a host node, check if it is the sibling of first-found host node
+    let node = lastOne.sibling
+    while (node !== null) {
+      if (unmountFiber === node) {
+        childToDelete.push(unmountFiber)
+      }
+      node = node.sibling
+    }
+  }
+}
+
 // delete whole subtree
 function commitDeletion(childToDelete: FiberNode) {
-  let rootHostNode: FiberNode | null = null
+  // all roots of its subtrees
+  // since the fiber can be a fragment, it can have multiple children to delete
+  // <>
+  //   <p>1</p>  <- delete
+  //   <p>2</p>  <- delete
+  // </>
+  const rootChildrenToDelete: FiberNode[] = []
 
   // traverse the tree recursively
   commitNestedComponent(childToDelete, (unmountFiber) => {
     switch (unmountFiber.tag) {
       case HostComponent:
-        if (rootHostNode === null) {
-          rootHostNode = unmountFiber
-        }
+        recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber)
         // TODO: unbind ref
         return
       case HostText:
-        if (rootHostNode === null) {
-          rootHostNode = unmountFiber
-        }
+        recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber)
         return
       case FunctionComponent:
         // TODO: useEffect unmount callback, unbind ref
@@ -106,10 +128,12 @@ function commitDeletion(childToDelete: FiberNode) {
   })
 
   // remove rootHostNode from dom tree
-  if (rootHostNode !== null) {
+  if (rootChildrenToDelete.length > 0) {
     const hostParent = getHostParent(childToDelete)
     if (hostParent !== null) {
-      removeChild((rootHostNode as FiberNode).stateNode, hostParent)
+      rootChildrenToDelete.forEach((node) =>
+        removeChild(node.stateNode, hostParent)
+      )
     }
   }
   childToDelete.return = null
