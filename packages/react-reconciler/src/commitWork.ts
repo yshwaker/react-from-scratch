@@ -1,7 +1,9 @@
 import {
   Container,
+  Instance,
   appendChildToContainer,
   commitUpdate,
+  insertChildToContainer,
   removeChild,
 } from 'hostConfig'
 import { FiberNode, FiberRootNode } from './fiber'
@@ -150,8 +152,58 @@ function commitPlacement(finishedWork: FiberNode) {
   // parent DOM
   const hostParent = getHostParent(finishedWork)
 
+  // host sibling
+  const sibling = getHostSibling(finishedWork)
+
   if (hostParent !== null) {
-    appendPlacementNodeIntoContainer(finishedWork, hostParent)
+    insertOrAppendPlacementNodeIntoContainer(finishedWork, hostParent, sibling)
+  }
+}
+
+function getHostSibling(fiber: FiberNode) {
+  let node: FiberNode = fiber
+
+  findSibling: while (true) {
+    while (node.sibling === null) {
+      const parent = node.return
+
+      if (parent === null || [HostText, HostComponent].includes(parent.tag)) {
+        // if we hit the parent that is host node, that means
+        // parent dom --- sibling
+        //   |
+        //  node
+        // parent's sibling can't be target fiber's sibing
+        return null
+      }
+      // <A> --- <div>
+      //  |
+      // <B>
+      node = parent
+    }
+    node.sibling.return = node
+    node = node.sibling
+
+    while (![HostText, HostComponent].includes(node.tag)) {
+      // go down
+      if ((node.flags & Placement) !== NoFlags) {
+        // we can insert new fiber before a node that is also moving or inserted
+        continue findSibling
+      }
+      if (node.child === null) {
+        continue findSibling
+      } else {
+        // <A> -- <B>
+        //         |
+        //       <div>
+        node.child.return = node
+        node = node.child
+      }
+    }
+
+    if ((node.tag & Placement) === NoFlags) {
+      // found Host Component/Text w/o Placement
+      return node.stateNode
+    }
   }
 }
 
@@ -179,22 +231,28 @@ function getHostParent(fiber: FiberNode): Container | null {
 }
 
 // traverse down, find the roots of all host nodes, and append them to host parent
-function appendPlacementNodeIntoContainer(
+function insertOrAppendPlacementNodeIntoContainer(
   finishedWork: FiberNode,
-  hostParent: Container
+  hostParent: Container,
+  before?: Instance
 ) {
   if (finishedWork.tag === HostComponent || finishedWork.tag === HostText) {
-    appendChildToContainer(hostParent, finishedWork.stateNode)
+    if (before) {
+      insertChildToContainer(hostParent, finishedWork.stateNode, before)
+    } else {
+      appendChildToContainer(hostParent, finishedWork.stateNode)
+    }
+
     return
   }
 
   const child = finishedWork.child
   if (child !== null) {
-    appendPlacementNodeIntoContainer(child, hostParent)
+    insertOrAppendPlacementNodeIntoContainer(child, hostParent)
     let sibling = child.sibling
 
     while (sibling !== null) {
-      appendPlacementNodeIntoContainer(sibling, hostParent)
+      insertOrAppendPlacementNodeIntoContainer(sibling, hostParent)
       sibling = sibling.sibling
     }
   }
