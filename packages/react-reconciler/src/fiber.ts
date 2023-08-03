@@ -1,6 +1,7 @@
 import { Container } from 'hostConfig' // the path is specified in tsconfig, because each host env has its own implementation
 import { Key, Props, React$Element, Ref } from 'shared/ReactTypes'
 import { Flags, NoFlags } from './fiberFlags'
+import { Lane, Lanes, NoLane, NoLanes } from './fiberLanes'
 import { Fragment, FunctionComponent, HostComponent, WorkTag } from './workTags'
 
 export class FiberNode {
@@ -85,12 +86,16 @@ export class FiberRootNode {
   container: Container
   current: FiberNode // hostRootFiber
   finishedWork: FiberNode | null // hostRootFiber after update
+  pendingLanes: Lanes // unprocessed lanes
+  finishedLane: Lane // current lane processed
 
   constructor(container: Container, hostRootFiber: FiberNode) {
     this.container = container
     this.current = hostRootFiber
     hostRootFiber.stateNode = this
     this.finishedWork = null
+    this.pendingLanes = NoLanes
+    this.finishedLane = NoLane
   }
 }
 

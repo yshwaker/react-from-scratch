@@ -2,6 +2,7 @@ import { React$Element } from 'shared/ReactTypes'
 import { mountChildFibers, reconcileChildFibers } from './childFibers'
 import { FiberNode } from './fiber'
 import { renderWithHooks } from './fiberHooks'
+import { Lane } from './fiberLanes'
 import { UpdateQueue, processUpdateQueue } from './updateQueue'
 import {
   Fragment,
@@ -12,17 +13,17 @@ import {
 } from './workTags'
 
 // reconcile the children, return the child if possible
-export function beginWork(wip: FiberNode) {
+export function beginWork(wip: FiberNode, renderLane: Lane) {
   switch (wip.tag) {
     case HostRoot:
-      return updateHostRoot(wip)
+      return updateHostRoot(wip, renderLane)
     case HostComponent:
       return updateHostComponent(wip)
     case HostText:
       // leaf node, no more children to update
       return null
     case FunctionComponent:
-      return updateFunctionComponent(wip)
+      return updateFunctionComponent(wip, renderLane)
     case Fragment:
       return updateFragment(wip)
     default:
@@ -43,13 +44,13 @@ function updateFragment(wip: FiberNode) {
   return wip.child
 }
 
-function updateHostRoot(wip: FiberNode) {
+function updateHostRoot(wip: FiberNode, renderLane: Lane) {
   const baseState = wip.memoizedState
   const updateQueue = wip.updateQueue as UpdateQueue<React$Element>
   const pending = updateQueue.shared.pending
   updateQueue.shared.pending = null
 
-  const { memoizedState } = processUpdateQueue(baseState, pending)
+  const { memoizedState } = processUpdateQueue(baseState, pending, renderLane)
 
   wip.memoizedState = memoizedState
 
@@ -68,8 +69,8 @@ function updateHostComponent(wip: FiberNode) {
   return wip.child
 }
 
-function updateFunctionComponent(wip: FiberNode) {
-  const nextChildren = renderWithHooks(wip)
+function updateFunctionComponent(wip: FiberNode, renderLane: Lane) {
+  const nextChildren = renderWithHooks(wip, renderLane)
   // nextChildren should be the return value of function component
   reconcileChildren(wip, nextChildren)
 
