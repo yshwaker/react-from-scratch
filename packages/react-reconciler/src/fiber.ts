@@ -1,6 +1,7 @@
 import { Container } from 'hostConfig' // the path is specified in tsconfig, because each host env has its own implementation
 import { Key, Props, React$Element, Ref } from 'shared/ReactTypes'
 import { Flags, NoFlags } from './fiberFlags'
+import { Effect } from './fiberHooks'
 import { Lane, Lanes, NoLane, NoLanes } from './fiberLanes'
 import { Fragment, FunctionComponent, HostComponent, WorkTag } from './workTags'
 
@@ -25,6 +26,7 @@ export class FiberNode {
   // HostRoot: updated react element
   memoizedState: any
   alternate: FiberNode | null // corresponding fiber node between current tree and wip tree
+  // in FC, it points to an effect list(circular linked list) in the context of this FC
   updateQueue: unknown
   flags: Flags // the mark for future operation(side effects) like dom append, update or deletion...
   subtreeFlags: Flags // flags bubbled up from the descendents
@@ -65,6 +67,11 @@ export class FiberNode {
   }
 }
 
+export interface PendingPassiveEffects {
+  unmount: Effect[] // collect destroy callbacks
+  update: Effect[] // collect create callbacks
+}
+
 /*
       ┌───────────────┐
       │ FiberRootNode │
@@ -88,6 +95,7 @@ export class FiberRootNode {
   finishedWork: FiberNode | null // hostRootFiber after update
   pendingLanes: Lanes // unprocessed lanes
   finishedLane: Lane // current lane processed
+  pendingPassiveEffects: PendingPassiveEffects // the place to collect all pending passive effects
 
   constructor(container: Container, hostRootFiber: FiberNode) {
     this.container = container
@@ -96,6 +104,10 @@ export class FiberRootNode {
     this.finishedWork = null
     this.pendingLanes = NoLanes
     this.finishedLane = NoLane
+    this.pendingPassiveEffects = {
+      unmount: [],
+      update: [],
+    }
   }
 }
 

@@ -35,7 +35,7 @@ export interface Effect {
   create: EffectCallback | void
   destroy: EffectCallback | void
   deps: EffectDeps
-  next: Effect | null // all effects in a fiber is connected as a loop linked list, so we can ignore the hooks of other types
+  next: Effect | null // all effects in a fiber is connected as a circular linked list, so we can ignore the hooks of other types
 }
 
 export interface FCUpdateQueue<State> extends UpdateQueue<State> {
@@ -45,7 +45,10 @@ export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 // render function component with hooks
 export function renderWithHooks(wip: FiberNode, lane: Lane) {
   currentlyRenderingFiber = wip
+  // reset hooks linked list
   wip.memoizedState = null
+  // reset effect linked list
+  wip.updateQueue = null
   renderLane = lane
 
   const current = wip.alternate
@@ -81,9 +84,10 @@ const HooksDispatcherOnMount: Dispatcher = {
 
 const HooksDispatcherOnUpdate: Dispatcher = {
   useState: updateState,
+  useEffect: updateEffect,
 }
 
-function mountEffect(create: EffectCallback | void, deps: EffectDeps | void) {
+function mountEffect(create?: EffectCallback, deps?: EffectDeps) {
   const hook = mountWorkInProgressHook()
   const nextDeps = deps === undefined ? null : deps
   ;(currentlyRenderingFiber as FiberNode).flags |= PassiveEffect // on mount, the callback need to be invoked
@@ -94,6 +98,46 @@ function mountEffect(create: EffectCallback | void, deps: EffectDeps | void) {
     undefined, // on mount, the callback is not invoked yet, so we don't have the destroy callback yet
     nextDeps
   )
+}
+
+function updateEffect(create?: EffectCallback, deps?: EffectDeps) {
+  const hook = updateWorkInProgressHook()
+  const nextDeps = deps === undefined ? null : deps
+  let destroy: EffectCallback
+
+  if (currentHook !== null) {
+    const prevEffect = currentHook.memoizedState as Effect
+    destroy = prevEffect.destroy as EffectCallback
+
+    const prevDeps = prevEffect.deps
+    // shallow compare
+    if (areHookInputsEqual(nextDeps, prevDeps)) {
+      hook.memoizedState = pushEffect(Passive, create, destroy, nextDeps)
+      return
+    }
+
+    // shallow compare: unequal
+    ;(currentlyRenderingFiber as FiberNode).flags |= PassiveEffect
+    hook.memoizedState = pushEffect(
+      Passive | HookHasEffect,
+      create,
+      destroy,
+      nextDeps
+    )
+  }
+}
+
+function areHookInputsEqual(nextDeps: EffectDeps, prevDeps: EffectDeps) {
+  if (prevDeps === null || nextDeps === null) {
+    return false
+  }
+  for (let i = 0; i < prevDeps.length && i < nextDeps.length; i++) {
+    if (Object.is(prevDeps[i], nextDeps[i])) {
+      continue
+    }
+    return false
+  }
+  return true
 }
 
 function pushEffect(
@@ -201,8 +245,7 @@ function mountWorkInProgressHook(): Hook {
   }
 
   if (workInProgressHook === null) {
-    // first hook on mount
-
+    // this is the first hook on mount
     if (currentlyRenderingFiber === null) {
       throw new Error(
         'hooks can only be used in the context of function component'
@@ -251,6 +294,7 @@ function updateWorkInProgressHook(): Hook {
     currentHook = nextCurrentHook
   }
 
+  // clone
   const newHook: Hook = {
     memoizedState: currentHook.memoizedState,
     updateQueue: currentHook.updateQueue,
@@ -258,7 +302,7 @@ function updateWorkInProgressHook(): Hook {
   }
 
   if (workInProgressHook === null) {
-    // first hook on mount
+    // first hook
 
     if (currentlyRenderingFiber === null) {
       throw new Error(
@@ -269,7 +313,7 @@ function updateWorkInProgressHook(): Hook {
       currentlyRenderingFiber.memoizedState = workInProgressHook
     }
   } else {
-    // following hooks on mount
+    // following hooks
     workInProgressHook.next = newHook
     workInProgressHook = newHook
   }
