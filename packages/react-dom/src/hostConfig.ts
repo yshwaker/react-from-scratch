@@ -1,5 +1,5 @@
 import { FiberNode } from 'react-reconciler/src/fiber'
-import { HostText } from 'react-reconciler/src/workTags'
+import { HostComponent, HostText } from 'react-reconciler/src/workTags'
 import { Props } from 'shared/ReactTypes'
 import { DOMElement, updateFiberProps } from './syntheticEvents'
 
@@ -40,8 +40,8 @@ export function commitUpdate(fiber: FiberNode) {
     case HostText:
       const text = fiber.memoizedProps.content
       return commitTextUpdate(fiber.stateNode, text)
-    // case HostComponent:
-    // TODO: update dom props
+    case HostComponent:
+      return updateFiberProps(fiber.stateNode, fiber.memoizedProps)
     default:
       if (__DEV__) {
         console.warn('unsupported fiber type for update')

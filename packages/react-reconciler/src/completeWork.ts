@@ -1,10 +1,10 @@
 import {
   Container,
+  Instance,
   appendInitialChild,
   createInstance,
   createTextInstance,
 } from 'hostConfig'
-import { updateFiberProps } from 'react-dom/src/syntheticEvents'
 import { FiberNode } from './fiber'
 import { NoFlags, Update } from './fiberFlags'
 import {
@@ -29,7 +29,7 @@ export function completeWork(wip: FiberNode) {
         // update
         // props changes?  yes: mark with update flags
         // TODO: compare props, save need-to-update props in update queue = [key1, value1, key2, value2, ...]
-        updateFiberProps(wip.stateNode, newProps)
+        markUpdate(wip)
       } else {
         // mount
         // 1. build DOM node
@@ -69,7 +69,7 @@ export function completeWork(wip: FiberNode) {
   }
 }
 
-function appendAllChildren(parent: Container, wip: FiberNode) {
+function appendAllChildren(parent: Container | Instance, wip: FiberNode) {
   let node = wip.child
 
   while (node !== null) {
