@@ -4,6 +4,7 @@ import {
   createContainer,
   updateContainer,
 } from 'react-reconciler/src/fiberReconciler'
+import * as Scheduler from 'scheduler'
 import { REACT_ELEMENT_TYPE, REACT_FRAGMENT_TYPE } from 'shared/ReactSymbols'
 import { React$Element } from 'shared/ReactTypes'
 import { Container, Instance, TextInstance } from './hostConfig'
@@ -102,5 +103,6 @@ export function createRoot() {
     getChildrenAsJSX() {
       return getChildrenAsJSX(container)
     },
+    _Scheduler: Scheduler,
   }
 }

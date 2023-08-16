@@ -25,7 +25,7 @@ export default [
       },
     ],
     // we don't want to bundle peer deps into the dist files
-    external: [Object.keys(peerDependencies)],
+    external: [...Object.keys(peerDependencies), 'scheduler'],
     plugins: [
       ...getBasePlugins(),
       alias({
@@ -59,7 +59,7 @@ export default [
         format: 'umd',
       },
     ],
-    external: ['react-dom', 'react'],
+    external: ['react-dom', 'react', 'scheduler'],
     plugins: getBasePlugins(),
   },
 ]

@@ -18,13 +18,13 @@ export default [
       },
     ],
     // we don't want to bundle peer deps into the dist files
-    external: [Object.keys(peerDependencies), 'scheduler'],
+    external: [...Object.keys(peerDependencies), 'scheduler'],
     plugins: [
       ...getBasePlugins({
         typescript: {
           exclude: ['./packages/react-dom/**/*'],
           tsconfigOverride: {
-            compilerOption: {
+            compilerOptions: {
               paths: {
                 hostConfig: [`./${name}/src/hostConfig.ts`],
               },
