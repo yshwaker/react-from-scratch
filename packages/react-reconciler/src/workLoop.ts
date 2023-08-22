@@ -143,6 +143,7 @@ function commitRoot(root: FiberRootNode) {
     if (!rootDoesHasPassiveEffect) {
       rootDoesHasPassiveEffect = true
 
+      // macro task scheduling
       scheduleCallback(NormalPriority, () => {
         flushPassiveEffect(root.pendingPassiveEffects)
         return
