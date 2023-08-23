@@ -13,7 +13,6 @@ import {
 } from 'scheduler'
 import './style.css'
 
-const button = document.querySelector('button')
 const root = document.querySelector('#root')
 
 type Priority =

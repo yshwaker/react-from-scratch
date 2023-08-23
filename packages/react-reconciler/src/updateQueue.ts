@@ -1,6 +1,6 @@
 import { Dispatch } from 'react/src/currentDispatcher'
 import { Action } from 'shared/ReactTypes'
-import { Lane } from './fiberLanes'
+import { Lane, NoLane, isSubsetOfLanes } from './fiberLanes'
 
 export interface Update<State> {
   action: Action<State>
@@ -59,36 +59,66 @@ export function processUpdateQueue<State>(
   baseState: State,
   pendingUpdate: Update<State> | null,
   renderLane: Lane
-): { memoizedState: State } {
+): { memoizedState: State; baseState: State; baseQueue: Update<State> | null } {
   const result: ReturnType<typeof processUpdateQueue<State>> = {
     memoizedState: baseState,
+    baseState,
+    baseQueue: null,
   }
 
   if (pendingUpdate !== null) {
     // first update on the linked list
     const first = pendingUpdate.next
     let pending = pendingUpdate.next as Update<any>
+
+    let newBaseState = baseState
+    let newBaseQueueFirst: Update<State> | null = null
+    let newBaseQueueLast: Update<State> | null = null
+    let newState = baseState // store the value after each update
+
     do {
       const updateLane = pending.lane
-      if (updateLane === renderLane) {
+      if (!isSubsetOfLanes(renderLane, updateLane)) {
+        // skipped update, priority isn't high enough
+        const clone = createUpdate(pending.action, pending.lane)
+
+        if (newBaseQueueFirst === null) {
+          // first skipped update
+          newBaseQueueFirst = clone
+          newBaseQueueLast = clone
+          newBaseState = newState
+        } else {
+          ;(newBaseQueueLast as Update<State>).next = clone
+          newBaseQueueLast = clone
+        }
+      } else {
+        if (newBaseQueueLast !== null) {
+          const clone = createUpdate(pending.action, NoLane)
+          ;(newBaseQueueLast as Update<State>).next = clone
+          newBaseQueueLast = clone
+        }
         const action = pendingUpdate.action
         if (action instanceof Function) {
           // action: (prevState: State) => State
-          baseState = action(baseState)
+          newState = action(baseState)
         } else {
           // action: State
-          baseState = action
-        }
-      } else {
-        if (__DEV__) {
-          console.error('renderLane is not consistent with the update lane')
+          newState = action
         }
       }
       pending = pending.next as Update<any>
     } while (pending !== first)
-  }
 
-  result.memoizedState = baseState
+    if (newBaseQueueLast === null) {
+      // no updates are skipped
+      newBaseState = newState
+    } else {
+      newBaseQueueLast.next = newBaseQueueFirst
+    }
+    result.memoizedState = newState
+    result.baseState = newBaseState
+    result.baseQueue = newBaseQueueLast
+  }
 
   return result
 }

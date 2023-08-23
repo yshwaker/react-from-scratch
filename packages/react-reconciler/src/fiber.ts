@@ -1,4 +1,5 @@
 import { Container } from 'hostConfig' // the path is specified in tsconfig, because each host env has its own implementation
+import { CallbackNode } from 'scheduler'
 import { Key, Props, React$Element, Ref } from 'shared/ReactTypes'
 import { Flags, NoFlags } from './fiberFlags'
 import { Effect } from './fiberHooks'
@@ -97,6 +98,9 @@ export class FiberRootNode {
   finishedLane: Lane // current lane processed
   pendingPassiveEffects: PendingPassiveEffects // the place to collect all pending passive effects
 
+  callbackNode: CallbackNode | null // tmp place to store work for concurrent rendering
+  callbackPriority: Lane
+
   constructor(container: Container, hostRootFiber: FiberNode) {
     this.container = container
     this.current = hostRootFiber
@@ -108,6 +112,9 @@ export class FiberRootNode {
       unmount: [],
       update: [],
     }
+
+    this.callbackNode = null
+    this.callbackPriority = NoLane
   }
 }
 
