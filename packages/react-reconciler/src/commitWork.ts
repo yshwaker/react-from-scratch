@@ -50,6 +50,7 @@ export function commitMutationEffect(
       up: while (nextEffect !== null) {
         commitMutationEffectsOnFiber(nextEffect, root)
         const sibling: FiberNode | null = nextEffect.sibling
+
         if (sibling !== null) {
           nextEffect = sibling
           break up
@@ -103,6 +104,10 @@ function commitPassiveEffect(
   ) {
     return
   }
+  if (__DEV__) {
+    console.log('executing commitPassiveEffect', fiber)
+  }
+
   const updateQueue = fiber.updateQueue as FCUpdateQueue<any>
   if (updateQueue !== null) {
     if (updateQueue.lastEffect === null && __DEV__) {
@@ -189,6 +194,10 @@ function commitDeletion(childToDelete: FiberNode, root: FiberRootNode) {
   // </>
   const rootChildrenToDelete: FiberNode[] = []
 
+  if (__DEV__) {
+    console.log('executing commitDeletion', childToDelete)
+  }
+
   // traverse the tree recursively
   commitNestedComponent(childToDelete, (unmountFiber) => {
     switch (unmountFiber.tag) {
@@ -274,7 +283,7 @@ function getHostSibling(fiber: FiberNode) {
     while (node.sibling === null) {
       const parent = node.return
 
-      if (parent === null || [HostText, HostComponent].includes(parent.tag)) {
+      if (parent === null || [HostRoot, HostComponent].includes(parent.tag)) {
         // if we hit the parent that is host node, that means
         // parent dom --- sibling
         //   |
@@ -287,7 +296,7 @@ function getHostSibling(fiber: FiberNode) {
       // <B>
       node = parent
     }
-    node.sibling.return = node
+    node.sibling.return = node.return
     node = node.sibling
 
     while (![HostText, HostComponent].includes(node.tag)) {
@@ -307,7 +316,7 @@ function getHostSibling(fiber: FiberNode) {
       }
     }
 
-    if ((node.tag & Placement) === NoFlags) {
+    if ((node.flags & Placement) === NoFlags) {
       // found Host Component/Text w/o Placement
       return node.stateNode
     }

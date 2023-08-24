@@ -283,6 +283,7 @@ function commitRoot(root: FiberRootNode) {
   }
 
   rootDoesHasPassiveEffect = false
+  console.log('commit stage end, rescheduling')
   ensureRootIsScheduled(root)
 }
 

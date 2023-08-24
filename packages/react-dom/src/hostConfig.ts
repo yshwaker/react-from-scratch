@@ -36,6 +36,9 @@ export function insertChildToContainer(
 }
 
 export function commitUpdate(fiber: FiberNode) {
+  if (__DEV__) {
+    console.log('executing commitUpdate', fiber)
+  }
   switch (fiber.tag) {
     case HostText:
       const text = fiber.memoizedProps.content
