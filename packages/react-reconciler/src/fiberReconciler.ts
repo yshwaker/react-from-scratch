@@ -1,4 +1,5 @@
 import { Container } from 'hostConfig'
+import { unstable_ImmediatePriority, unstable_runWithPriority } from 'scheduler'
 import { React$Element } from 'shared/ReactTypes'
 import { FiberNode, FiberRootNode } from './fiber'
 import { requestUpdateLanes } from './fiberLanes'
@@ -26,17 +27,20 @@ export function updateContainer(
   element: React$Element | null,
   root: FiberRootNode
 ) {
-  const hostRootFiber = root.current
+  // default: sync priority
+  unstable_runWithPriority(unstable_ImmediatePriority, () => {
+    const hostRootFiber = root.current
 
-  const lane = requestUpdateLanes()
-  const update = createUpdate<React$Element | null>(element, lane)
-  enqueueUpdate(
-    hostRootFiber.updateQueue as UpdateQueue<React$Element | null>,
-    update
-  )
+    const lane = requestUpdateLanes()
+    const update = createUpdate<React$Element | null>(element, lane)
+    enqueueUpdate(
+      hostRootFiber.updateQueue as UpdateQueue<React$Element | null>,
+      update
+    )
 
-  // reconcile on the fiber tree
-  scheduleUpdateOnFiber(hostRootFiber, lane)
+    // reconcile on the fiber tree
+    scheduleUpdateOnFiber(hostRootFiber, lane)
+  })
 
   return element
 }
