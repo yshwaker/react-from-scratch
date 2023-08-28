@@ -74,11 +74,17 @@ function ensureRootIsScheduled(root: FiberRootNode) {
 
   let newCallbackNode = null
 
+  if (__DEV__) {
+    console.log(
+      `${
+        updateLane === SyncLane ? 'micro' : 'macro'
+      } task scheduling, priority:`,
+      updateLane
+    )
+  }
+
   if (updateLane === SyncLane) {
     // sync priority, use micro task
-    if (__DEV__) {
-      console.log('micro task scheduling, priority:', updateLane)
-    }
     // add to the queue
     scheduleSyncCallback(performSyncWorkOnRoot.bind(null, root))
     // run all callbacks as micro task

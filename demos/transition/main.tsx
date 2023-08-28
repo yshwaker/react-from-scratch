@@ -1,5 +1,4 @@
-// import { useState, useTransition } from 'react'
-import { useState } from 'react'
+import { useState, useTransition } from 'react'
 import ReactDOM from 'react-dom'
 import AboutTab from './AboutTab'
 import ContactTab from './ContactTab'
@@ -9,13 +8,13 @@ import TabButton from './TabButton'
 import './style.css'
 
 export default function TabContainer() {
-  // const [isPending, startTransition] = useTransition()
+  const [isPending, startTransition] = useTransition()
   const [tab, setTab] = useState('about')
 
   function selectTab(nextTab) {
-    // startTransition(() => {
-    setTab(nextTab)
-    // })
+    startTransition(() => {
+      setTab(nextTab)
+    })
   }
 
   return (
