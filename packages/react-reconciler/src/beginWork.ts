@@ -1,6 +1,7 @@
 import { React$Element } from 'shared/ReactTypes'
 import { mountChildFibers, reconcileChildFibers } from './childFibers'
 import { FiberNode } from './fiber'
+import { Ref } from './fiberFlags'
 import { renderWithHooks } from './fiberHooks'
 import { Lane } from './fiberLanes'
 import { UpdateQueue, processUpdateQueue } from './updateQueue'
@@ -64,6 +65,7 @@ function updateHostComponent(wip: FiberNode) {
   // host components don't have updateQueue
   // it can only create child node from the `children` prop
   const { children: nextChildren } = wip.pendingProps
+  markRef(wip.alternate, wip)
   reconcileChildren(wip, nextChildren)
 
   return wip.child
@@ -93,5 +95,15 @@ function reconcileChildren(wip: FiberNode, children?: React$Element) {
     wip.child = mountChildFibers(wip, null, children)
   } else {
     wip.child = reconcileChildFibers(wip, current.child, children)
+  }
+}
+
+function markRef(current: FiberNode | null, workInProgress: FiberNode) {
+  const ref = workInProgress.ref
+  if (
+    (current === null && ref !== null) ||
+    (current !== null && current.ref !== ref)
+  ) {
+    workInProgress.flags |= Ref
   }
 }

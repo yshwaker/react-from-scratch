@@ -10,11 +10,13 @@ import { FiberNode, FiberRootNode, PendingPassiveEffects } from './fiber'
 import {
   ChildDeletion,
   Flags,
+  LayoutMask,
   MutationMask,
   NoFlags,
   PassiveEffect,
   PassiveMask,
   Placement,
+  Ref,
   Update,
 } from './fiberFlags'
 import { Effect, FCUpdateQueue } from './fiberHooks'
@@ -29,34 +31,34 @@ import {
 let nextEffect: FiberNode | null
 
 // find all effects recursively
-export function commitMutationEffect(
-  finishedWork: FiberNode,
-  root: FiberRootNode
+function commitEffects(
+  phrase: 'mutation' | 'layout',
+  mask: Flags,
+  callback: (fiber: FiberNode, root: FiberRootNode) => void
 ) {
-  nextEffect = finishedWork
+  return (finishedWork: FiberNode, root: FiberRootNode) => {
+    nextEffect = finishedWork
 
-  while (nextEffect !== null) {
-    // DFS: dive
-    const child: FiberNode | null = nextEffect.child
+    while (nextEffect !== null) {
+      // DFS: dive
+      const child: FiberNode | null = nextEffect.child
 
-    if (
-      (nextEffect.subtreeFlags & (MutationMask | PassiveMask)) !== NoFlags &&
-      child !== null
-    ) {
-      nextEffect = child
-    } else {
-      // no effects in the children or this is a leaf node
-      // so stop traversing down and commit the effect on current node
-      up: while (nextEffect !== null) {
-        commitMutationEffectsOnFiber(nextEffect, root)
-        const sibling: FiberNode | null = nextEffect.sibling
+      if ((nextEffect.subtreeFlags & mask) !== NoFlags && child !== null) {
+        nextEffect = child
+      } else {
+        // no effects in the children or this is a leaf node
+        // so stop traversing down and commit the effect on current node
+        up: while (nextEffect !== null) {
+          callback(nextEffect, root)
+          const sibling: FiberNode | null = nextEffect.sibling
 
-        if (sibling !== null) {
-          nextEffect = sibling
-          break up
+          if (sibling !== null) {
+            nextEffect = sibling
+            break up
+          }
+
+          nextEffect = nextEffect.return
         }
-
-        nextEffect = nextEffect.return
       }
     }
   }
@@ -66,7 +68,7 @@ function commitMutationEffectsOnFiber(
   finishedWork: FiberNode,
   root: FiberRootNode
 ) {
-  const flags = finishedWork.flags
+  const { flags, tag } = finishedWork
 
   if ((flags & Placement) !== NoFlags) {
     commitPlacement(finishedWork)
@@ -91,7 +93,60 @@ function commitMutationEffectsOnFiber(
     commitPassiveEffect(finishedWork, root, 'update')
     finishedWork.flags &= ~PassiveEffect
   }
+
+  if ((flags & Ref) !== NoFlags && tag === HostComponent) {
+    safelyAttachRef(finishedWork)
+    finishedWork.flags &= ~Ref
+  }
 }
+
+function commitLayoutEffectsOnFiber(
+  finishedWork: FiberNode,
+  root: FiberRootNode
+) {
+  const { flags, tag } = finishedWork
+
+  if (tag === HostComponent && (flags & Ref) !== NoFlags) {
+    // attach new ref
+    safelyAttachRef(finishedWork)
+    finishedWork.flags &= ~Ref
+  }
+}
+
+function safelyDetachRef(current: FiberNode) {
+  const ref = current.ref
+  if (ref !== null) {
+    if (typeof ref === 'function') {
+      ref(null)
+    } else {
+      ref.current = null
+    }
+  }
+}
+
+function safelyAttachRef(fiber: FiberNode) {
+  const ref = fiber.ref
+  if (ref !== null) {
+    const instance = fiber.stateNode
+    if (typeof ref === 'function') {
+      ref(instance)
+    } else {
+      ref.current = instance
+    }
+  }
+}
+
+export const commitMutationEffects = commitEffects(
+  'mutation',
+  MutationMask | PassiveMask,
+  commitMutationEffectsOnFiber
+)
+
+export const commitLayoutEffects = commitEffects(
+  'layout',
+  MutationMask | LayoutMask,
+  commitLayoutEffectsOnFiber
+)
 
 function commitPassiveEffect(
   fiber: FiberNode,
@@ -203,7 +258,7 @@ function commitDeletion(childToDelete: FiberNode, root: FiberRootNode) {
     switch (unmountFiber.tag) {
       case HostComponent:
         recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber)
-        // TODO: unbind ref
+        safelyDetachRef(unmountFiber)
         return
       case HostText:
         recordHostChildrenToDelete(rootChildrenToDelete, unmountFiber)

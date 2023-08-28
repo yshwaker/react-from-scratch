@@ -6,7 +6,7 @@ import {
   createTextInstance,
 } from 'hostConfig'
 import { FiberNode } from './fiber'
-import { NoFlags, Update } from './fiberFlags'
+import { NoFlags, Ref, Update } from './fiberFlags'
 import {
   Fragment,
   FunctionComponent,
@@ -17,6 +17,10 @@ import {
 
 function markUpdate(fiber: FiberNode) {
   fiber.flags |= Update
+}
+
+function markRef(fiber: FiberNode) {
+  fiber.flags |= Ref
 }
 
 export function completeWork(wip: FiberNode) {
@@ -30,6 +34,9 @@ export function completeWork(wip: FiberNode) {
         // props changes?  yes: mark with update flags
         // TODO: compare props, save need-to-update props in update queue = [key1, value1, key2, value2, ...]
         markUpdate(wip)
+        if (current.ref !== wip.ref) {
+          markRef(wip)
+        }
       } else {
         // mount
         // 1. build DOM node
@@ -37,6 +44,10 @@ export function completeWork(wip: FiberNode) {
         // 2. append DOM element to the DOM tree
         appendAllChildren(instance, wip)
         wip.stateNode = instance
+        // 3. mark ref
+        if (wip.ref !== null) {
+          markRef(wip)
+        }
       }
       bubbleProperties(wip)
       return null

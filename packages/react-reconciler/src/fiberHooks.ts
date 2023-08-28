@@ -85,12 +85,14 @@ const HooksDispatcherOnMount: Dispatcher = {
   useState: mountState,
   useEffect: mountEffect,
   useTransition: mountTransition,
+  useRef: mountRef,
 }
 
 const HooksDispatcherOnUpdate: Dispatcher = {
   useState: updateState,
   useEffect: updateEffect,
   useTransition: updateTransition,
+  useRef: updateRef,
 }
 
 function mountEffect(create?: EffectCallback, deps?: EffectDeps) {
@@ -378,4 +380,16 @@ function updateWorkInProgressHook(): Hook {
   }
 
   return workInProgressHook
+}
+
+function mountRef<T>(initialValue: T): { current: T } {
+  const hook = mountWorkInProgressHook()
+  const ref = { current: initialValue }
+  hook.memoizedState = ref
+  return ref
+}
+
+function updateRef<T>(initialValue: T): { current: T } {
+  const hook = updateWorkInProgressHook()
+  return hook.memoizedState
 }

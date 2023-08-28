@@ -10,7 +10,8 @@ import {
   commitHookEffectListCreate,
   commitHookEffectListDestroy,
   commitHookEffectListUnmount,
-  commitMutationEffect,
+  commitLayoutEffects,
+  commitMutationEffects,
 } from './commitWork'
 import { completeWork } from './completeWork'
 import {
@@ -276,14 +277,15 @@ function commitRoot(root: FiberRootNode) {
   const rootHasEffect = (finishedWork.flags & MutationMask) !== NoFlags
 
   if (subtreeHasEffect || rootHasEffect) {
-    // beforeMutation
-    // mutation
-    commitMutationEffect(finishedWork, root)
+    // 1. beforeMutation
+    // 2. mutation
+    commitMutationEffects(finishedWork, root)
 
     // swap current tree and wip tree
     root.current = finishedWork
 
-    // layout
+    // 3. layout
+    commitLayoutEffects(finishedWork, root)
   } else {
     root.current = finishedWork
   }
