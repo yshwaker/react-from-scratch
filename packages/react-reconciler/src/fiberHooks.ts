@@ -1,6 +1,6 @@
 import currentBatchConfig from 'react/src/currentBatchConfig'
 import { Dispatch, Dispatcher } from 'react/src/currentDispatcher'
-import { Action } from 'shared/ReactTypes'
+import { Action, ReactContext } from 'shared/ReactTypes'
 import internals from 'shared/internals'
 import { FiberNode } from './fiber'
 import { Flags, PassiveEffect } from './fiberFlags'
@@ -86,6 +86,7 @@ const HooksDispatcherOnMount: Dispatcher = {
   useEffect: mountEffect,
   useTransition: mountTransition,
   useRef: mountRef,
+  useContext: readContext,
 }
 
 const HooksDispatcherOnUpdate: Dispatcher = {
@@ -93,6 +94,7 @@ const HooksDispatcherOnUpdate: Dispatcher = {
   useEffect: updateEffect,
   useTransition: updateTransition,
   useRef: updateRef,
+  useContext: readContext,
 }
 
 function mountEffect(create?: EffectCallback, deps?: EffectDeps) {
@@ -392,4 +394,18 @@ function mountRef<T>(initialValue: T): { current: T } {
 function updateRef<T>(initialValue: T): { current: T } {
   const hook = updateWorkInProgressHook()
   return hook.memoizedState
+}
+
+// observe that the useContext doesn't use `mountWorkInProgressHook`
+// thus, this hook doesn't have the limit other hooks have. it can be
+// used inside conditional statement.
+function readContext<T>(context: ReactContext<T>): T {
+  const consumer = currentlyRenderingFiber
+  if (consumer === null) {
+    throw new Error(
+      'hooks can only be used in the context of function component'
+    )
+  }
+  const value = context._currentValue
+  return value
 }

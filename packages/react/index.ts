@@ -3,6 +3,7 @@ import currentDispatcher, {
   Dispatcher,
   resolveDispatcher,
 } from './src/currentDispatcher'
+export { createContext } from './src/context'
 
 // * expose hooks from current dispatcher, like a proxy
 export const useState: Dispatcher['useState'] = (initialState: any) => {
@@ -23,6 +24,11 @@ export const useTransition: Dispatcher['useTransition'] = () => {
 export const useRef: Dispatcher['useRef'] = (initialValue) => {
   const dispatcher = resolveDispatcher()
   return dispatcher.useRef(initialValue)
+}
+
+export const useContext: Dispatcher['useContext'] = (context) => {
+  const dispatcher = resolveDispatcher()
+  return dispatcher.useContext(context)
 }
 
 // internal data shared among packages

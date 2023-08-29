@@ -340,7 +340,9 @@ function getElementKeyToUse(element: any, index?: number): Key {
   if (
     Array.isArray(element) ||
     typeof element === 'number' ||
-    typeof element === 'string'
+    typeof element === 'string' ||
+    element === undefined ||
+    element === null
   ) {
     return index
   }

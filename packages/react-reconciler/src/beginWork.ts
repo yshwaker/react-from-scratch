@@ -1,11 +1,13 @@
 import { React$Element } from 'shared/ReactTypes'
 import { mountChildFibers, reconcileChildFibers } from './childFibers'
 import { FiberNode } from './fiber'
+import { pushProvider } from './fiberContext'
 import { Ref } from './fiberFlags'
 import { renderWithHooks } from './fiberHooks'
 import { Lane } from './fiberLanes'
 import { UpdateQueue, processUpdateQueue } from './updateQueue'
 import {
+  ContextProvider,
   Fragment,
   FunctionComponent,
   HostComponent,
@@ -27,6 +29,8 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
       return updateFunctionComponent(wip, renderLane)
     case Fragment:
       return updateFragment(wip)
+    case ContextProvider:
+      return updateContextProvider(wip)
     default:
       if (__DEV__) {
         console.error('fiber tag is not supported in beginwork')
@@ -35,6 +39,20 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
   }
 
   return null
+}
+
+function updateContextProvider(wip: FiberNode) {
+  const providerType = wip.type
+  const context = providerType._context
+  const newProps = wip.pendingProps
+
+  pushProvider(context, newProps.value)
+
+  const nextChildren = newProps.children
+  // nextChildren should be the return value of function component
+  reconcileChildren(wip, nextChildren)
+
+  return wip.child
 }
 
 function updateFragment(wip: FiberNode) {
