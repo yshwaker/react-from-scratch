@@ -3,6 +3,10 @@ import currentDispatcher, {
   Dispatcher,
   resolveDispatcher,
 } from './src/currentDispatcher'
+export {
+  REACT_FRAGMENT_TYPE as Fragment,
+  REACT_SUSPENSE_TYPE as Suspense,
+} from 'shared/ReactSymbols'
 export { createContext } from './src/context'
 
 // * expose hooks from current dispatcher, like a proxy

@@ -7,7 +7,7 @@ import {
 } from 'hostConfig'
 import { FiberNode } from './fiber'
 import { popProvider } from './fiberContext'
-import { NoFlags, Ref, Update } from './fiberFlags'
+import { NoFlags, Ref, Update, Visibility } from './fiberFlags'
 import {
   ContextProvider,
   Fragment,
@@ -15,6 +15,8 @@ import {
   HostComponent,
   HostRoot,
   HostText,
+  OffscreenComponent,
+  SuspenseComponent,
 } from './workTags'
 
 function markUpdate(fiber: FiberNode) {
@@ -72,11 +74,33 @@ export function completeWork(wip: FiberNode) {
     case HostRoot:
     case FunctionComponent:
     case Fragment:
+    case OffscreenComponent:
       bubbleProperties(wip)
       return null
     case ContextProvider:
       const context = wip.type._context
       popProvider(context)
+      bubbleProperties(wip)
+      return null
+    case SuspenseComponent:
+      // we check the visibility of offscreenFiber here instead of in OffscreenComponent
+      // because Suspense may return fallback node such that offscreenFiber doesn't trigger completeWork
+      const offscreenFiber = wip.child as FiberNode
+      const isHidden = offscreenFiber.pendingProps.mode === 'hidden'
+      const currentOffscreenFiber = offscreenFiber.alternate
+      if (currentOffscreenFiber !== null) {
+        // update
+        const wasHidden = currentOffscreenFiber.pendingProps.mode === 'hidden'
+        if (isHidden !== wasHidden) {
+          offscreenFiber.flags |= Visibility
+          bubbleProperties(offscreenFiber)
+        }
+      } else if (isHidden) {
+        // mount & hidden
+        offscreenFiber.flags |= Visibility
+        bubbleProperties(offscreenFiber)
+      }
+
       bubbleProperties(wip)
       return null
     default:

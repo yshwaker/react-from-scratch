@@ -5,7 +5,7 @@ import { DOMElement, updateFiberProps } from './syntheticEvents'
 
 export type Container = Element
 export type Instance = Element
-export type textInstance = Text
+export type TextInstance = Text
 
 export function createInstance(type: string, props: Props): Instance {
   // TODO: handle props
@@ -53,12 +53,12 @@ export function commitUpdate(fiber: FiberNode) {
   }
 }
 
-function commitTextUpdate(textInstance: textInstance, content: string) {
+function commitTextUpdate(textInstance: TextInstance, content: string) {
   textInstance.textContent = content
 }
 
 export function removeChild(
-  child: Instance | textInstance,
+  child: Instance | TextInstance,
   container: Container
 ) {
   container.removeChild(child)
@@ -70,3 +70,21 @@ export const scheduleMicroTask =
     : typeof Promise === 'function'
     ? (callback: (...args: any) => void) => Promise.resolve().then(callback)
     : setTimeout
+
+export function hideInstance(instance: Instance) {
+  const style = (instance as HTMLElement).style
+  style.setProperty('display', 'none', 'important')
+}
+
+export function unhideInstance(instance: Instance) {
+  const style = (instance as HTMLElement).style
+  style.display = ''
+}
+
+export function hideTextInstance(textInstance: TextInstance) {
+  textInstance.nodeValue = ''
+}
+
+export function unhideTextInstance(textInstance: TextInstance, text: string) {
+  textInstance.nodeValue = text
+}

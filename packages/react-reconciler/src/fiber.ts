@@ -1,6 +1,6 @@
 import { Container } from 'hostConfig' // the path is specified in tsconfig, because each host env has its own implementation
 import { CallbackNode } from 'scheduler'
-import { REACT_PROVIDER_TYPE } from 'shared/ReactSymbols'
+import { REACT_PROVIDER_TYPE, REACT_SUSPENSE_TYPE } from 'shared/ReactSymbols'
 import { Key, Props, React$Element, Ref } from 'shared/ReactTypes'
 import { Flags, NoFlags } from './fiberFlags'
 import { Effect } from './fiberHooks'
@@ -10,8 +10,15 @@ import {
   Fragment,
   FunctionComponent,
   HostComponent,
+  OffscreenComponent,
+  SuspenseComponent,
   WorkTag,
 } from './workTags'
+
+export interface OffscreenProps {
+  mode: 'visible' | 'hidden'
+  children: any
+}
 
 export class FiberNode {
   tag: WorkTag
@@ -22,7 +29,7 @@ export class FiberNode {
   // for Function Component <App />, type: App
   // for Host Component <div>, type: 'div'
   type: any
-  ref: Ref
+  ref: Ref | null
   /* point to parent, child, sibling fiber */
   return: FiberNode | null
   child: FiberNode | null
@@ -169,6 +176,8 @@ export function createFiberFromElement(element: React$Element) {
     type.$$typeof === REACT_PROVIDER_TYPE
   ) {
     fiberTag = ContextProvider
+  } else if (type === REACT_SUSPENSE_TYPE) {
+    fiberTag = SuspenseComponent
   } else if (typeof type !== 'function' && __DEV__) {
     console.warn('undefined type of react element', element)
   }
@@ -183,5 +192,12 @@ export function createFiberFromElement(element: React$Element) {
 // for fragment fiber node, its pending props is a child array
 export function createFiberFromFragment(elements: any[], key: Key): FiberNode {
   const fiber = new FiberNode(Fragment, elements, key)
+  return fiber
+}
+
+export function createFiberFromOffscreen(
+  pendingProps: OffscreenProps
+): FiberNode {
+  const fiber = new FiberNode(OffscreenComponent, pendingProps, null)
   return fiber
 }
