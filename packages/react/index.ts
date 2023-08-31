@@ -1,3 +1,4 @@
+import { Usable } from 'shared/ReactTypes'
 import currentBatchConfig from './src/currentBatchConfig'
 import currentDispatcher, {
   Dispatcher,
@@ -33,6 +34,11 @@ export const useRef: Dispatcher['useRef'] = (initialValue) => {
 export const useContext: Dispatcher['useContext'] = (context) => {
   const dispatcher = resolveDispatcher()
   return dispatcher.useContext(context)
+}
+
+export const use: Dispatcher['use'] = <T>(usable: Usable<T>) => {
+  const dispatcher = resolveDispatcher()
+  return dispatcher.use(usable)
 }
 
 // internal data shared among packages

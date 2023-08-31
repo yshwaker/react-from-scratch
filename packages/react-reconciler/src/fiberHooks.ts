@@ -1,11 +1,13 @@
 import currentBatchConfig from 'react/src/currentBatchConfig'
 import { Dispatch, Dispatcher } from 'react/src/currentDispatcher'
-import { Action, ReactContext } from 'shared/ReactTypes'
+import { REACT_CONTEXT_TYPE } from 'shared/ReactSymbols'
+import { Action, ReactContext, Thenable, Usable } from 'shared/ReactTypes'
 import internals from 'shared/internals'
 import { FiberNode } from './fiber'
 import { Flags, PassiveEffect } from './fiberFlags'
 import { Lane, NoLane, requestUpdateLanes } from './fiberLanes'
 import { HookHasEffect, Passive } from './hookEffectTags'
+import { trackUsedThenable } from './thenable'
 import {
   Update,
   UpdateQueue,
@@ -87,6 +89,7 @@ const HooksDispatcherOnMount: Dispatcher = {
   useTransition: mountTransition,
   useRef: mountRef,
   useContext: readContext,
+  use,
 }
 
 const HooksDispatcherOnUpdate: Dispatcher = {
@@ -95,6 +98,7 @@ const HooksDispatcherOnUpdate: Dispatcher = {
   useTransition: updateTransition,
   useRef: updateRef,
   useContext: readContext,
+  use,
 }
 
 function mountEffect(create?: EffectCallback, deps?: EffectDeps) {
@@ -408,4 +412,20 @@ function readContext<T>(context: ReactContext<T>): T {
   }
   const value = context._currentValue
   return value
+}
+
+function use<T>(usable: Usable<T>): T {
+  if (usable !== null && typeof usable === 'object') {
+    if (typeof (usable as Thenable<T>).then === 'function') {
+      // thenable
+      const thenable = usable as Thenable<T>
+      return trackUsedThenable(thenable)
+    } else if ((usable as ReactContext<T>).$$typeof === REACT_CONTEXT_TYPE) {
+      // context
+      const context = usable as ReactContext<T>
+      return readContext(context)
+    }
+  }
+
+  throw new Error('use() unsupported type: ' + usable)
 }
