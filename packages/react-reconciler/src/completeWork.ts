@@ -8,6 +8,7 @@ import {
 import { FiberNode } from './fiber'
 import { popProvider } from './fiberContext'
 import { NoFlags, Ref, Update, Visibility } from './fiberFlags'
+import { popSuspenseHandler } from './suspenseContext'
 import {
   ContextProvider,
   Fragment,
@@ -83,6 +84,7 @@ export function completeWork(wip: FiberNode) {
       bubbleProperties(wip)
       return null
     case SuspenseComponent:
+      popSuspenseHandler()
       // we check the visibility of offscreenFiber here instead of in OffscreenComponent
       // because Suspense may return fallback node such that offscreenFiber doesn't trigger completeWork
       const offscreenFiber = wip.child as FiberNode

@@ -219,6 +219,7 @@ function updateState<State>(): [State, Dispatch<State>] {
       pending.next = baseFirst
     }
     baseQueue = pending
+    // saved in current
     current.baseQueue = pending
     queue.shared.pending = null
   }
@@ -428,4 +429,10 @@ function use<T>(usable: Usable<T>): T {
   }
 
   throw new Error('use() unsupported type: ' + usable)
+}
+
+export function resetHooksOnUnwind() {
+  currentlyRenderingFiber = null
+  currentHook = null
+  workInProgressHook = null
 }

@@ -1,7 +1,7 @@
 import { Container } from 'hostConfig' // the path is specified in tsconfig, because each host env has its own implementation
 import { CallbackNode } from 'scheduler'
 import { REACT_PROVIDER_TYPE, REACT_SUSPENSE_TYPE } from 'shared/ReactSymbols'
-import { Key, Props, React$Element, Ref } from 'shared/ReactTypes'
+import { Key, Props, React$Element, Ref, Wakeable } from 'shared/ReactTypes'
 import { Flags, NoFlags } from './fiberFlags'
 import { Effect } from './fiberHooks'
 import { Lane, Lanes, NoLane, NoLanes } from './fiberLanes'
@@ -115,12 +115,21 @@ export class FiberRootNode {
   callbackNode: CallbackNode | null // tmp place to store work for concurrent rendering
   callbackPriority: Lane
 
+  pingCache: WeakMap<Wakeable<any>, Set<Lane>> | null
+
+  // when update cause supsense, update lane is added into suspendedLanes
+  // when wakeable pings, corresponding suspend lane is added into pingedLanes
+  suspendedLanes: Lanes
+  pingedLanes: Lanes
+
   constructor(container: Container, hostRootFiber: FiberNode) {
     this.container = container
     this.current = hostRootFiber
     hostRootFiber.stateNode = this
     this.finishedWork = null
     this.pendingLanes = NoLanes
+    this.suspendedLanes = NoLanes
+    this.pingedLanes = NoLanes
     this.finishedLane = NoLane
     this.pendingPassiveEffects = {
       unmount: [],
@@ -129,6 +138,8 @@ export class FiberRootNode {
 
     this.callbackNode = null
     this.callbackPriority = NoLane
+
+    this.pingCache = null
   }
 }
 

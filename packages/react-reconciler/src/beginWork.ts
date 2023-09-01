@@ -8,9 +8,16 @@ import {
   createWorkInProgress,
 } from './fiber'
 import { pushProvider } from './fiberContext'
-import { ChildDeletion, Placement, Ref } from './fiberFlags'
+import {
+  ChildDeletion,
+  DidCapture,
+  NoFlags,
+  Placement,
+  Ref,
+} from './fiberFlags'
 import { renderWithHooks } from './fiberHooks'
 import { Lane } from './fiberLanes'
+import { pushSuspenseHandler } from './suspenseContext'
 import { UpdateQueue, processUpdateQueue } from './updateQueue'
 import {
   ContextProvider,
@@ -75,13 +82,15 @@ function updateSuspenseComponent(wip: FiberNode) {
   const nextProps = wip.pendingProps
 
   let showFallback = false
-  let didSuspend = true
+  let didSuspend = (wip.flags & DidCapture) !== NoFlags
   if (didSuspend) {
     showFallback = true
+    wip.flags &= ~DidCapture
   }
 
   const nextPrimaryChildren = nextProps.children
   const nextFallbackChildren = nextProps.fallback
+  pushSuspenseHandler(wip)
 
   if (current === null) {
     // mount
@@ -260,6 +269,11 @@ function updateHostRoot(wip: FiberNode, renderLane: Lane) {
   updateQueue.shared.pending = null
 
   const { memoizedState } = processUpdateQueue(baseState, pending, renderLane)
+
+  const current = wip.alternate
+  if (current !== null) {
+    current.memoizedState = memoizedState
+  }
 
   wip.memoizedState = memoizedState
 

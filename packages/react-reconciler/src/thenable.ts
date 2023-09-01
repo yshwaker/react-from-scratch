@@ -6,7 +6,7 @@ import {
 } from 'shared/ReactTypes'
 
 export const SuspenseException = new Error(
-  'this is an actual error, but a part of suspense implementation, if you caught it, please throw it'
+  `this isn't an actual error, but a part of suspense implementation, if you caught it, please throw it`
 )
 
 let suspendedThenable: Thenable<any> | null = null
