@@ -35,7 +35,9 @@ export function updateContainer(
     const update = createUpdate<React$Element | null>(element, lane)
     enqueueUpdate(
       hostRootFiber.updateQueue as UpdateQueue<React$Element | null>,
-      update
+      update,
+      hostRootFiber,
+      lane
     )
 
     // reconcile on the fiber tree

@@ -351,3 +351,23 @@ function getElementKeyToUse(element: any, index?: number): Key {
 
 export const reconcileChildFibers = ChildReconciler(true)
 export const mountChildFibers = ChildReconciler(false)
+
+export function cloneChildFibers(wip: FiberNode) {
+  if (wip.child === null) {
+    return
+  }
+  let currentChild = wip.child
+  let newChild = createWorkInProgress(currentChild, currentChild.pendingProps)
+  wip.child = newChild
+  newChild.return = wip
+
+  while (currentChild.sibling !== null) {
+    currentChild = currentChild.sibling
+    newChild.sibling = createWorkInProgress(
+      currentChild,
+      currentChild.pendingProps
+    )
+    newChild = newChild.sibling
+    newChild.return = wip
+  }
+}

@@ -47,6 +47,9 @@ export class FiberNode {
   subtreeFlags: Flags // flags bubbled up from the descendents
   deletions: FiberNode[] | null // child fiber nodes to delete
 
+  lanes: Lanes // corresponding lanes of all pending update on the fiber
+  childLanes: Lanes // all pending lanes of the subtree, similar to subtreeFlags
+
   /**
    *
    * @param tag
@@ -79,6 +82,9 @@ export class FiberNode {
     this.flags = NoFlags
     this.subtreeFlags = NoFlags
     this.deletions = null
+
+    this.lanes = NoLanes
+    this.childLanes = NoLanes
   }
 }
 
@@ -171,6 +177,9 @@ export function createWorkInProgress(
   wip.memoizedProps = current.memoizedProps
   wip.memoizedState = current.memoizedState
   wip.ref = current.ref
+
+  wip.lanes = current.lanes
+  wip.childLanes = current.childLanes
 
   return wip
 }

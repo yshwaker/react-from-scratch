@@ -1,5 +1,9 @@
 import { React$Element } from 'shared/ReactTypes'
-import { mountChildFibers, reconcileChildFibers } from './childFibers'
+import {
+  cloneChildFibers,
+  mountChildFibers,
+  reconcileChildFibers,
+} from './childFibers'
 import {
   FiberNode,
   OffscreenProps,
@@ -15,8 +19,8 @@ import {
   Placement,
   Ref,
 } from './fiberFlags'
-import { renderWithHooks } from './fiberHooks'
-import { Lane } from './fiberLanes'
+import { bailoutHook, renderWithHooks } from './fiberHooks'
+import { Lane, NoLanes, includeSomeLanes } from './fiberLanes'
 import { pushSuspenseHandler } from './suspenseContext'
 import { UpdateQueue, processUpdateQueue } from './updateQueue'
 import {
@@ -30,8 +34,48 @@ import {
   SuspenseComponent,
 } from './workTags'
 
+// whether we can activate bailout strategy, bailout if not true
+let didReceiveUpdate = false
+
+export function markWorkInProgressReceivedUpdate() {
+  didReceiveUpdate = true
+}
+
 // reconcile the children, return the child if possible
 export function beginWork(wip: FiberNode, renderLane: Lane) {
+  // bailout
+  didReceiveUpdate = false
+  const current = wip.alternate
+  if (current !== null) {
+    const oldProps = current.memoizedProps
+    const newProps = wip.pendingProps
+
+    if (!Object.is(oldProps, newProps) || current.type !== wip.type) {
+      didReceiveUpdate = true
+    } else {
+      const hasScheduledStateOrContext = checkScheduledUpdateOrContext(
+        current,
+        renderLane
+      )
+      if (!hasScheduledStateOrContext) {
+        didReceiveUpdate = false
+
+        switch (wip.tag) {
+          case ContextProvider:
+            const newValue = wip.memoizedProps.value
+            const context = wip.type._context
+            pushProvider(context, newValue)
+            break
+          // TODO Suspense
+        }
+
+        bailoutOnAlreadyFinishedWork(wip, renderLane)
+      }
+    }
+  }
+
+  wip.lanes = NoLanes
+
   switch (wip.tag) {
     case HostRoot:
       return updateHostRoot(wip, renderLane)
@@ -58,6 +102,37 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
   }
 
   return null
+}
+
+function bailoutOnAlreadyFinishedWork(wip: FiberNode, renderLane: Lane) {
+  if (!includeSomeLanes(wip.childLanes, renderLane)) {
+    // the subtree of work in progress fiber doesn't have update of this render lane
+    if (__DEV__) {
+      console.warn('bailout whole subtree', wip)
+    }
+    return null
+  }
+
+  if (__DEV__) {
+    console.warn('bailout one fiber', wip)
+  }
+
+  cloneChildFibers(wip)
+  return wip.child
+}
+
+// we use current because we had consumed all wip.lanes and set it to NoLanes at the beginning of beginWork()
+function checkScheduledUpdateOrContext(
+  current: FiberNode,
+  renderLane: Lane
+): boolean {
+  const updateLanes = current.lanes
+
+  if (includeSomeLanes(updateLanes, renderLane)) {
+    return true
+  }
+
+  return false
 }
 
 /*
@@ -268,16 +343,25 @@ function updateHostRoot(wip: FiberNode, renderLane: Lane) {
   const pending = updateQueue.shared.pending
   updateQueue.shared.pending = null
 
+  const prevChildren = wip.memoizedState
+
   const { memoizedState } = processUpdateQueue(baseState, pending, renderLane)
 
   const current = wip.alternate
   if (current !== null) {
-    current.memoizedState = memoizedState
+    if (!current.memoizedState) {
+      current.memoizedState = memoizedState
+    }
   }
 
   wip.memoizedState = memoizedState
 
   const nextChildren = wip.memoizedState
+
+  if (prevChildren === nextChildren) {
+    return bailoutOnAlreadyFinishedWork(wip, renderLane)
+  }
+
   reconcileChildren(wip, nextChildren)
 
   return wip.child
@@ -294,7 +378,14 @@ function updateHostComponent(wip: FiberNode) {
 }
 
 function updateFunctionComponent(wip: FiberNode, renderLane: Lane) {
+  // render
   const nextChildren = renderWithHooks(wip, renderLane)
+
+  const current = wip.alternate
+  if (current !== null && !didReceiveUpdate) {
+    bailoutHook(wip, renderLane)
+    return bailoutOnAlreadyFinishedWork(wip, renderLane)
+  }
   // nextChildren should be the return value of function component
   reconcileChildren(wip, nextChildren)
 

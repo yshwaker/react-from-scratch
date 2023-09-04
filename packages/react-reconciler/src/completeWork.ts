@@ -19,6 +19,7 @@ import {
   OffscreenComponent,
   SuspenseComponent,
 } from './workTags'
+import { NoLanes, mergeLanes } from './fiberLanes'
 
 function markUpdate(fiber: FiberNode) {
   fiber.flags |= Update
@@ -149,14 +150,21 @@ function appendAllChildren(parent: Container | Instance, wip: FiberNode) {
 function bubbleProperties(wip: FiberNode) {
   let subtreeFlags = NoFlags
   let child = wip.child
+  let newChildLanes = NoLanes
 
   while (child !== null) {
     subtreeFlags |= child.subtreeFlags
     subtreeFlags |= child.flags
+
+    newChildLanes = mergeLanes(
+      newChildLanes,
+      mergeLanes(child.lanes, child.childLanes)
+    )
 
     child.return = wip
     child = child.sibling
   }
 
   wip.subtreeFlags |= subtreeFlags
+  wip.childLanes = newChildLanes
 }

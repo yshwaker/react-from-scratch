@@ -62,7 +62,7 @@ let workInProgressSuspendedReason: SuspendedReason = NotSuspended
 let workInProgressThrownValue: any = null
 
 export function scheduleUpdateOnFiber(fiber: FiberNode, lane: Lane) {
-  const root = markUpdateFromFiberToRoot(fiber)
+  const root = markUpdateLaneFromFiberToRoot(fiber, lane)
   markRootUpdated(root, lane)
   ensureRootIsScheduled(root)
 }
@@ -127,11 +127,17 @@ export function markRootUpdated(root: FiberRootNode, lane: Lane) {
 }
 
 // find the fiberRootNode from the node down the fiber tree
-function markUpdateFromFiberToRoot(fiber: FiberNode) {
+function markUpdateLaneFromFiberToRoot(fiber: FiberNode, lane: Lane) {
   let node = fiber
   let parent = fiber.return
 
   while (parent !== null) {
+    parent.childLanes = mergeLanes(parent.childLanes, lane)
+    const alternate = parent.alternate
+    if (alternate != null) {
+      alternate.childLanes = mergeLanes(alternate.childLanes, lane)
+    }
+
     node = parent
     parent = parent.return
   }

@@ -1,6 +1,7 @@
 import { Dispatch } from 'react/src/currentDispatcher'
 import { Action } from 'shared/ReactTypes'
-import { Lane, NoLane, isSubsetOfLanes } from './fiberLanes'
+import { Lane, NoLane, isSubsetOfLanes, mergeLanes } from './fiberLanes'
+import { FiberNode } from './fiber'
 
 export interface Update<State> {
   action: Action<State>
@@ -38,7 +39,9 @@ export function createUpdateQueue<State>(): UpdateQueue<State> {
 
 export function enqueueUpdate<State>(
   updateQueue: UpdateQueue<State>,
-  update: Update<State>
+  update: Update<State>,
+  fiber: FiberNode,
+  lane: Lane
 ) {
   const pending = updateQueue.shared.pending
   // updateQueue is a circular linked list
@@ -52,13 +55,22 @@ export function enqueueUpdate<State>(
   // store the last update in the list
   // it's convenient to access the first update in the list by pending.next
   updateQueue.shared.pending = update
+
+  fiber.lanes = mergeLanes(fiber.lanes, lane)
+  const alternate = fiber.alternate
+
+  if (alternate !== null) {
+    // also update the current node, helpful if we need to reset the tree
+    alternate.lanes = mergeLanes(alternate.lanes, lane)
+  }
 }
 
 // process all the updates in the queue
 export function processUpdateQueue<State>(
   baseState: State,
   pendingUpdate: Update<State> | null,
-  renderLane: Lane
+  renderLane: Lane,
+  onSkipUpdate?: <State>(update: Update<State>) => void
 ): { memoizedState: State; baseState: State; baseQueue: Update<State> | null } {
   const result: ReturnType<typeof processUpdateQueue<State>> = {
     memoizedState: baseState,
@@ -81,6 +93,7 @@ export function processUpdateQueue<State>(
       if (!isSubsetOfLanes(renderLane, updateLane)) {
         // skipped update, priority isn't high enough
         const clone = createUpdate(pending.action, pending.lane)
+        onSkipUpdate?.(clone)
 
         if (newBaseQueueFirst === null) {
           // first skipped update
