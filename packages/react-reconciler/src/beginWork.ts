@@ -104,6 +104,7 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
   return null
 }
 
+// bail out all the fiber nodes that doesn't need to render
 function bailoutOnAlreadyFinishedWork(wip: FiberNode, renderLane: Lane) {
   if (!includeSomeLanes(wip.childLanes, renderLane)) {
     // the subtree of work in progress fiber doesn't have update of this render lane

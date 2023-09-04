@@ -8,6 +8,7 @@ import { Flags, PassiveEffect } from './fiberFlags'
 import {
   Lane,
   NoLane,
+  NoLanes,
   mergeLanes,
   removeLanes,
   requestUpdateLanes,
@@ -17,6 +18,7 @@ import { trackUsedThenable } from './thenable'
 import {
   Update,
   UpdateQueue,
+  basicStateReducer,
   createUpdate,
   createUpdateQueue,
   enqueueUpdate,
@@ -53,6 +55,7 @@ export interface Effect {
 
 export interface FCUpdateQueue<State> extends UpdateQueue<State> {
   lastEffect: Effect | null
+  lastRenderedState: State // it is the memoized state stored on the usestate hook, used for eager state
 }
 
 // render function component with hooks
@@ -208,7 +211,7 @@ function updateState<State>(): [State, Dispatch<State>] {
   const hook = updateWorkInProgressHook()
 
   // new state
-  const queue = hook.updateQueue as UpdateQueue<State>
+  const queue = hook.updateQueue as FCUpdateQueue<State>
   const baseState = hook.baseState
   // pending update enqueued previously by calling dispatch function
   const pending = queue.shared.pending
@@ -251,6 +254,7 @@ function updateState<State>(): [State, Dispatch<State>] {
     hook.memoizedState = memoizedState
     hook.baseState = newBaseState
     hook.baseQueue = newBaseQueue
+    queue.lastRenderedState = memoizedState
   }
 
   return [hook.memoizedState, queue.dispatch as Dispatch<State>]
@@ -263,7 +267,7 @@ function mountState<State>(
 
   const memoizedState =
     initialState instanceof Function ? initialState() : initialState
-  const updateQueue = createUpdateQueue<State>()
+  const updateQueue = createFCUpdateQueue<State>()
   hook.updateQueue = updateQueue
   hook.memoizedState = memoizedState
   hook.baseState = memoizedState
@@ -275,6 +279,7 @@ function mountState<State>(
     updateQueue
   )
   updateQueue.dispatch = dispatch
+  updateQueue.lastRenderedState = memoizedState
 
   return [memoizedState, dispatch]
 }
@@ -310,11 +315,33 @@ function updateTransition(): [boolean, (callback: () => void) => void] {
 
 function dispatchSetState<State>(
   fiber: FiberNode,
-  updateQueue: UpdateQueue<State>,
+  updateQueue: FCUpdateQueue<State>,
   action: Action<State>
 ) {
   const lane = requestUpdateLanes()
   const update = createUpdate(action, lane)
+
+  const current = fiber.alternate
+  if (
+    fiber.lanes === NoLanes &&
+    (current === null || current.lanes === NoLanes)
+  ) {
+    // new created update is the first update on this fiber
+    // before update
+    const currentState = updateQueue.lastRenderedState
+    const eagerState = basicStateReducer(currentState, action)
+    update.hasEagerState = true
+    update.eagerState = eagerState
+    if (Object.is(currentState, eagerState)) {
+      if (__DEV__) {
+        console.warn('activate eager state')
+      }
+      // TODO: do we really need this if state doesn't change
+      // enqueueUpdate(updateQueue, update, fiber, NoLane)
+      return
+    }
+  }
+
   enqueueUpdate(updateQueue, update, fiber, lane)
   scheduleUpdateOnFiber(fiber, lane)
 }

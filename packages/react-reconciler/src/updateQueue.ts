@@ -7,6 +7,8 @@ export interface Update<State> {
   action: Action<State>
   lane: Lane
   next: Update<any> | null
+  hasEagerState: boolean
+  eagerState: State | null // store the calculated eager state for later use
 }
 
 export interface UpdateQueue<State> {
@@ -18,12 +20,16 @@ export interface UpdateQueue<State> {
 
 export function createUpdate<State>(
   action: Action<State>,
-  lane: Lane
+  lane: Lane,
+  hasEagerState = false,
+  eagerState = null
 ): Update<State> {
   return {
     action,
     lane,
     next: null,
+    hasEagerState,
+    eagerState,
   }
 }
 
@@ -62,6 +68,19 @@ export function enqueueUpdate<State>(
   if (alternate !== null) {
     // also update the current node, helpful if we need to reset the tree
     alternate.lanes = mergeLanes(alternate.lanes, lane)
+  }
+}
+
+export function basicStateReducer<State>(
+  state: State,
+  action: Action<State>
+): State {
+  if (action instanceof Function) {
+    // action: (prevState: State) => State
+    return action(state)
+  } else {
+    // action: State
+    return action
   }
 }
 
@@ -111,12 +130,10 @@ export function processUpdateQueue<State>(
           newBaseQueueLast = clone
         }
         const action = pendingUpdate.action
-        if (action instanceof Function) {
-          // action: (prevState: State) => State
-          newState = action(baseState)
+        if (pending.hasEagerState) {
+          newState = pending.eagerState
         } else {
-          // action: State
-          newState = action
+          newState = basicStateReducer(newState, action)
         }
       }
       pending = pending.next as Update<any>
