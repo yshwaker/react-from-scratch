@@ -61,7 +61,6 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
       )
       if (!hasScheduledStateOrContext) {
         didReceiveUpdate = false
-
         switch (wip.tag) {
           case ContextProvider:
             const newValue = wip.memoizedProps.value
@@ -71,7 +70,7 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
           // TODO Suspense
         }
 
-        bailoutOnAlreadyFinishedWork(wip, renderLane)
+        return bailoutOnAlreadyFinishedWork(wip, renderLane)
       }
     }
   }
