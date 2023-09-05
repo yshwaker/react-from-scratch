@@ -1,6 +1,10 @@
 import { Container } from 'hostConfig' // the path is specified in tsconfig, because each host env has its own implementation
 import { CallbackNode } from 'scheduler'
-import { REACT_PROVIDER_TYPE, REACT_SUSPENSE_TYPE } from 'shared/ReactSymbols'
+import {
+  REACT_MEMO_TYPE,
+  REACT_PROVIDER_TYPE,
+  REACT_SUSPENSE_TYPE,
+} from 'shared/ReactSymbols'
 import { Key, Props, React$Element, Ref, Wakeable } from 'shared/ReactTypes'
 import { Flags, NoFlags } from './fiberFlags'
 import { Effect } from './fiberHooks'
@@ -10,6 +14,7 @@ import {
   Fragment,
   FunctionComponent,
   HostComponent,
+  MemoComponent,
   OffscreenComponent,
   SuspenseComponent,
   WorkTag,
@@ -191,11 +196,18 @@ export function createFiberFromElement(element: React$Element) {
   if (typeof type === 'string') {
     // e.g. type of <div> is 'div'
     fiberTag = HostComponent
-  } else if (
-    typeof type === 'object' &&
-    type.$$typeof === REACT_PROVIDER_TYPE
-  ) {
-    fiberTag = ContextProvider
+  } else if (typeof type === 'object') {
+    switch (type.$$typeof) {
+      case REACT_PROVIDER_TYPE:
+        fiberTag = ContextProvider
+        break
+      case REACT_MEMO_TYPE:
+        fiberTag = MemoComponent
+        break
+      default:
+        console.warn('undefined type', element)
+        break
+    }
   } else if (type === REACT_SUSPENSE_TYPE) {
     fiberTag = SuspenseComponent
   } else if (typeof type !== 'function' && __DEV__) {

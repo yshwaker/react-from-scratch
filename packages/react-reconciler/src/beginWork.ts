@@ -30,9 +30,11 @@ import {
   HostComponent,
   HostRoot,
   HostText,
+  MemoComponent,
   OffscreenComponent,
   SuspenseComponent,
 } from './workTags'
+import { shallowEqual } from 'shared/shallowEquals'
 
 // whether we can activate bailout strategy, bailout if not true
 let didReceiveUpdate = false
@@ -85,7 +87,7 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
       // leaf node, no more children to update
       return null
     case FunctionComponent:
-      return updateFunctionComponent(wip, renderLane)
+      return updateFunctionComponent(wip, wip.type, renderLane)
     case Fragment:
       return updateFragment(wip)
     case ContextProvider:
@@ -94,6 +96,8 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
       return updateSuspenseComponent(wip)
     case OffscreenComponent:
       return updateOffscreenComponent(wip)
+    case MemoComponent:
+      return updateMemoComponent(wip, renderLane)
     default:
       if (__DEV__) {
         console.error('fiber tag is not supported in beginwork')
@@ -102,6 +106,28 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
   }
 
   return null
+}
+
+function updateMemoComponent(wip: FiberNode, renderLane: Lanes) {
+  const current = wip.alternate
+  const nextProps = wip.pendingProps
+  const Component = wip.type.type
+
+  if (current !== null) {
+    const prevProps = current.memoizedProps
+
+    if (shallowEqual(prevProps, nextProps) && current.ref === wip.ref) {
+      didReceiveUpdate = false
+      wip.pendingProps = prevProps
+
+      if (!checkScheduledUpdateOrContext(current, renderLane)) {
+        wip.lanes = current.lanes
+        return bailoutOnAlreadyFinishedWork(wip, renderLane)
+      }
+    }
+  }
+
+  return updateFunctionComponent(wip, Component, renderLane)
 }
 
 // bail out all the fiber nodes that doesn't need to render
@@ -378,9 +404,13 @@ function updateHostComponent(wip: FiberNode) {
   return wip.child
 }
 
-function updateFunctionComponent(wip: FiberNode, renderLane: Lane) {
+function updateFunctionComponent(
+  wip: FiberNode,
+  Component: FiberNode['type'],
+  renderLane: Lane
+) {
   // render
-  const nextChildren = renderWithHooks(wip, renderLane)
+  const nextChildren = renderWithHooks(wip, Component, renderLane)
 
   const current = wip.alternate
   if (current !== null && !didReceiveUpdate) {

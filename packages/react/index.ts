@@ -4,11 +4,13 @@ import currentDispatcher, {
   Dispatcher,
   resolveDispatcher,
 } from './src/currentDispatcher'
+import { HookDeps } from 'react-reconciler/src/fiberHooks'
 export {
   REACT_FRAGMENT_TYPE as Fragment,
   REACT_SUSPENSE_TYPE as Suspense,
 } from 'shared/ReactSymbols'
 export { createContext } from './src/context'
+export { memo } from './src/memo'
 
 // * expose hooks from current dispatcher, like a proxy
 export const useState: Dispatcher['useState'] = (initialState: any) => {
@@ -39,6 +41,22 @@ export const useContext: Dispatcher['useContext'] = (context) => {
 export const use: Dispatcher['use'] = <T>(usable: Usable<T>) => {
   const dispatcher = resolveDispatcher()
   return dispatcher.use(usable)
+}
+
+export const useCallback: Dispatcher['useCallback'] = <T>(
+  callback: T,
+  deps: HookDeps
+) => {
+  const dispatcher = resolveDispatcher()
+  return dispatcher.useCallback(callback, deps)
+}
+
+export const useMemo: Dispatcher['useMemo'] = <T>(
+  nextCreate: () => T,
+  deps: HookDeps
+) => {
+  const dispatcher = resolveDispatcher()
+  return dispatcher.useMemo(nextCreate, deps)
 }
 
 // internal data shared among packages

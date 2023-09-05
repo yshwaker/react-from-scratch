@@ -43,13 +43,13 @@ interface Hook {
 }
 
 type EffectCallback = () => void
-type EffectDeps = any[] | null
+export type HookDeps = any[] | null
 
 export interface Effect {
   tag: Flags
   create: EffectCallback | void
   destroy: EffectCallback | void
-  deps: EffectDeps
+  deps: HookDeps
   next: Effect | null // all effects in a fiber is connected as a circular linked list, so we can ignore the hooks of other types
 }
 
@@ -59,7 +59,11 @@ export interface FCUpdateQueue<State> extends UpdateQueue<State> {
 }
 
 // render function component with hooks
-export function renderWithHooks(wip: FiberNode, lane: Lane) {
+export function renderWithHooks(
+  wip: FiberNode,
+  Component: FiberNode['type'],
+  lane: Lane
+) {
   currentlyRenderingFiber = wip
   // reset hooks linked list
   wip.memoizedState = null
@@ -77,7 +81,6 @@ export function renderWithHooks(wip: FiberNode, lane: Lane) {
     currentDispatcher.current = HooksDispatcherOnMount
   }
 
-  const Component = wip.type
   const props = wip.pendingProps
   const children = Component(props)
 
@@ -100,6 +103,8 @@ const HooksDispatcherOnMount: Dispatcher = {
   useRef: mountRef,
   useContext: readContext,
   use,
+  useCallback: mountCallback,
+  useMemo: mountMemo,
 }
 
 const HooksDispatcherOnUpdate: Dispatcher = {
@@ -109,9 +114,11 @@ const HooksDispatcherOnUpdate: Dispatcher = {
   useRef: updateRef,
   useContext: readContext,
   use,
+  useCallback: updateCallback,
+  useMemo: updateMemo,
 }
 
-function mountEffect(create?: EffectCallback, deps?: EffectDeps) {
+function mountEffect(create?: EffectCallback, deps?: HookDeps) {
   const hook = mountWorkInProgressHook()
   const nextDeps = deps === undefined ? null : deps
   ;(currentlyRenderingFiber as FiberNode).flags |= PassiveEffect // on mount, the callback need to be invoked
@@ -124,7 +131,7 @@ function mountEffect(create?: EffectCallback, deps?: EffectDeps) {
   )
 }
 
-function updateEffect(create?: EffectCallback, deps?: EffectDeps) {
+function updateEffect(create?: EffectCallback, deps?: HookDeps) {
   const hook = updateWorkInProgressHook()
   const nextDeps = deps === undefined ? null : deps
   let destroy: EffectCallback
@@ -151,7 +158,7 @@ function updateEffect(create?: EffectCallback, deps?: EffectDeps) {
   }
 }
 
-function areHookInputsEqual(nextDeps: EffectDeps, prevDeps: EffectDeps) {
+function areHookInputsEqual(nextDeps: HookDeps, prevDeps: HookDeps) {
   if (prevDeps === null || nextDeps === null) {
     return false
   }
@@ -168,7 +175,7 @@ function pushEffect(
   hookFlags: Flags,
   create: EffectCallback | void,
   destroy: EffectCallback | void,
-  deps: EffectDeps
+  deps: HookDeps
 ): Effect {
   const effect: Effect = {
     tag: hookFlags,
@@ -488,4 +495,52 @@ export function bailoutHook(wip: FiberNode, renderLane: Lane) {
   wip.flags &= ~PassiveEffect
 
   current.lanes = removeLanes(current.lanes, renderLane)
+}
+
+function mountCallback<T>(callback: T, deps?: HookDeps) {
+  const hook = mountWorkInProgressHook()
+  const nextDeps = deps === undefined ? null : deps
+  hook.memoizedState = [callback, nextDeps]
+
+  return callback
+}
+
+function updateCallback<T>(callback: T, deps?: HookDeps) {
+  const hook = updateWorkInProgressHook()
+  const nextDeps = deps === undefined ? null : deps
+  const prevState = hook.memoizedState
+  if (nextDeps !== null) {
+    const prevDeps = prevState[1]
+    if (areHookInputsEqual(nextDeps, prevDeps)) {
+      return prevState[0]
+    }
+  }
+  hook.memoizedState = [callback, nextDeps]
+  return callback
+}
+
+function mountMemo<T>(nextCreate: () => T, deps?: HookDeps) {
+  const hook = mountWorkInProgressHook()
+  const nextDeps = deps === undefined ? null : deps
+  const nextValue = nextCreate()
+  hook.memoizedState = [nextValue, nextDeps]
+
+  return nextValue
+}
+
+function updateMemo<T>(nextCreate: () => T, deps?: HookDeps) {
+  const hook = updateWorkInProgressHook()
+  const nextDeps = deps === undefined ? null : deps
+  const prevState = hook.memoizedState
+  if (nextDeps !== null) {
+    const prevDeps = prevState[1]
+    if (areHookInputsEqual(nextDeps, prevDeps)) {
+      return prevState[0]
+    }
+  }
+
+  const nextValue = nextCreate()
+  hook.memoizedState = [nextValue, nextDeps]
+
+  return nextValue
 }
