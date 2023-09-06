@@ -26,6 +26,7 @@ import {
 } from './updateQueue'
 import { scheduleUpdateOnFiber } from './workLoop'
 import { markWorkInProgressReceivedUpdate } from './beginWork'
+import { readContext as readContextOrigin } from './fiberContext'
 
 let currentlyRenderingFiber: FiberNode | null = null
 let workInProgressHook: Hook | null = null // trace the Hook in wip fiber node's hook list
@@ -56,6 +57,10 @@ export interface Effect {
 export interface FCUpdateQueue<State> extends UpdateQueue<State> {
   lastEffect: Effect | null
   lastRenderedState: State // it is the memoized state stored on the usestate hook, used for eager state
+}
+
+function readContext<Value>(context: ReactContext<Value>): Value {
+  return readContextOrigin(currentlyRenderingFiber, context)
 }
 
 // render function component with hooks
@@ -451,20 +456,6 @@ function mountRef<T>(initialValue: T): { current: T } {
 function updateRef<T>(initialValue: T): { current: T } {
   const hook = updateWorkInProgressHook()
   return hook.memoizedState
-}
-
-// observe that the useContext doesn't use `mountWorkInProgressHook`
-// thus, this hook doesn't have the limit other hooks have. it can be
-// used inside conditional statement.
-function readContext<T>(context: ReactContext<T>): T {
-  const consumer = currentlyRenderingFiber
-  if (consumer === null) {
-    throw new Error(
-      'hooks can only be used in the context of function component'
-    )
-  }
-  const value = context._currentValue
-  return value
 }
 
 function use<T>(usable: Usable<T>): T {

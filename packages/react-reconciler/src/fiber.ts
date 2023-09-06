@@ -19,10 +19,16 @@ import {
   SuspenseComponent,
   WorkTag,
 } from './workTags'
+import { ContextItem } from './fiberContext'
 
 export interface OffscreenProps {
   mode: 'visible' | 'hidden'
   children: any
+}
+
+interface FiberDependencies<Value> {
+  firstContext: ContextItem<Value> | null // linked list of contexts this fiber depends on
+  lanes: Lanes // lanes of updates that will change the context value
 }
 
 export class FiberNode {
@@ -54,6 +60,8 @@ export class FiberNode {
 
   lanes: Lanes // corresponding lanes of all pending update on the fiber
   childLanes: Lanes // all pending lanes of the subtree, similar to subtreeFlags
+
+  dependencies: FiberDependencies<any> | null
 
   /**
    *
@@ -90,6 +98,8 @@ export class FiberNode {
 
     this.lanes = NoLanes
     this.childLanes = NoLanes
+
+    this.dependencies = null
   }
 }
 
@@ -185,6 +195,9 @@ export function createWorkInProgress(
 
   wip.lanes = current.lanes
   wip.childLanes = current.childLanes
+
+  const currentDeps = current.dependencies
+  wip.dependencies = currentDeps === null ? null : { ...currentDeps }
 
   return wip
 }

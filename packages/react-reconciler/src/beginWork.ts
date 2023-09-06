@@ -11,7 +11,11 @@ import {
   createFiberFromOffscreen,
   createWorkInProgress,
 } from './fiber'
-import { pushProvider } from './fiberContext'
+import {
+  prepareToReadContext,
+  propagateContextChange,
+  pushProvider,
+} from './fiberContext'
 import {
   ChildDeletion,
   DidCapture,
@@ -90,7 +94,7 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
     case Fragment:
       return updateFragment(wip)
     case ContextProvider:
-      return updateContextProvider(wip)
+      return updateContextProvider(wip, renderLane)
     case SuspenseComponent:
       return updateSuspenseComponent(wip)
     case OffscreenComponent:
@@ -107,7 +111,7 @@ export function beginWork(wip: FiberNode, renderLane: Lane) {
   return null
 }
 
-function updateMemoComponent(wip: FiberNode, renderLane: Lanes) {
+function updateMemoComponent(wip: FiberNode, renderLane: Lane) {
   const current = wip.alternate
   const nextProps = wip.pendingProps
   const Component = wip.type.type
@@ -341,14 +345,29 @@ function updateOffscreenComponent(wip: FiberNode) {
   return wip.child
 }
 
-function updateContextProvider(wip: FiberNode) {
+function updateContextProvider(wip: FiberNode, renderLane: Lane) {
   const providerType = wip.type
   const context = providerType._context
-  const nextProps = wip.pendingProps
+  const newProps = wip.pendingProps
+  const oldProps = wip.memoizedProps
+  const newValues = newProps.value
 
-  pushProvider(context, nextProps.value)
+  pushProvider(context, newValues)
 
-  const nextChildren = nextProps.children
+  if (oldProps !== null) {
+    const oldValue = oldProps.value
+
+    if (
+      Object.is(oldValue, newValues) &&
+      oldProps.children === newProps.children
+    ) {
+      return bailoutOnAlreadyFinishedWork(wip, renderLane)
+    } else {
+      propagateContextChange(wip, context, renderLane)
+    }
+  }
+
+  const nextChildren = newProps.children
   // nextChildren should be the return value of function component
   reconcileChildren(wip, nextChildren)
 
@@ -409,6 +428,7 @@ function updateFunctionComponent(
   renderLane: Lane
 ) {
   // render
+  prepareToReadContext(wip, renderLane)
   const nextChildren = renderWithHooks(wip, Component, renderLane)
 
   const current = wip.alternate

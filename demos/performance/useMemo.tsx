@@ -7,6 +7,7 @@ export default function App() {
   const [num, update] = useState(0)
   console.log('App render ', num)
 
+  // the props of ExpensiveSubtree doesn't change here(same reference: {}), since we memoized it
   const Cpn = useMemo(() => <ExpensiveSubtree />, [])
 
   return (
